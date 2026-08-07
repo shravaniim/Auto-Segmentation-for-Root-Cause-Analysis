@@ -1,6 +1,6 @@
 Severity_Rank,Technique,Top_Segment_Definition,Segments_Generated,Top_Segment_Pop_Pct,Top_Segment_Exp_Pct,Max_PSI,Max_Gini_Drop,Max_KS_Drop,Max_BR_Shift_Pct,Exposure_Drift,Calibration_Drift,Root_Cause_Feature,Root_Cause_Score,Business_Impact_Score,Top_Segment_EAD,Execution_Time_Sec,Deterministic,Explainability,Overall_Score_100
-1,Feature Binning,59.38 < debt_to_income <= 59.915,20,1.06,0.97,0.0,0.434,0.2587,16.16%,0.0,0.0,N/A,0.0,0.0097,"$3,308,083",37.6022,Yes,High,60.0
-2,AutoSlicer,utilization_rate >= 71.87,10,25.12,25.11,0.0,0.3189,0.2422,8.15%,0.0011,0.0202,N/A,0.0,0.0684,"$85,729,324",2.5775,Yes,Medium,53.3
-3,Gradient Boosting,debt_to_income >= 42.14 AND utilization_rate < 23.47,6,9.4,9.25,0.0001,0.0998,0.0676,-2.47%,-0.0011,0.0921,N/A,0.0,0.0096,"$31,585,407",0.2253,Yes,Medium,40.6
-4,K-Means Clustering,Cluster_1: age >= 43.5 AND loan_to_value < 69.06 AND annual_income >= 6.764e+04 AND debt_to_income >= 36.89,10,9.14,9.16,0.0,0.2136,0.1658,-5.12%,-0.0005,0.0292,N/A,0.0,0.0102,"$31,266,695",14.229,Yes*,Medium,27.9
-5,Drift Localization Tree,debt_to_income >= 13.63 AND utilization_rate < 18.22,2,13.46,13.37,0.0,0.0,0.0066,-2.47%,-0.0009,-0.0158,N/A,0.0,0.018,"$45,643,866",0.3311,Yes,High,1.4
+1,AutoSlicer,region = West,10,27.4,40.17,0.241,0.2606,0.2468,-56.57%,0.3081,-0.7351,customer_id,9.5148,0.1387,"$517,872,657",4.5313,Yes,Medium,91.3
+2,Feature Binning,income <= 49487.0,20,35.32,45.95,0.241,0.1363,0.1431,-64.09%,0.0,3.0046,income,0.0749,0.4595,"$592,457,899",20.8534,Yes,High,79.7
+3,K-Means Clustering,Cluster_0: shap_age != 0.2 AND age < 29.5,3,27.4,40.17,0.241,0.0441,0.0,-56.57%,0.3081,-0.7351,customer_id,9.5148,0.1387,"$517,872,657",10.914,Yes*,Medium,50.5
+4,Drift Localization Tree,No stable drift segments found,0,0.0,0.0,0.0,0.0,0.0,0.0%,0.0,0.0,N/A,0.0,0.0,$0,0.4024,Yes,High,0.0
+4,Gradient Boosting,No stable drift segments found,0,0.0,0.0,0.0,0.0,0.0,0.0%,0.0,0.0,N/A,0.0,0.0,$0,0.2375,Yes,Medium,0.0

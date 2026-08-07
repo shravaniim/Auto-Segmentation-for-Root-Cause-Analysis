@@ -1,19 +1,3 @@
-"""
-Auto Segmentation Techniques Comparison & Benchmarking Suite
-Author: Antigravity AI
-Description: Benchmarks and compares 5 Auto Segmentation techniques with a director-ready
-             interpretable summary table featuring ranked overall scores, segment counts,
-             reproducibility flags, and human-readable explainability ratings.
-             
-             Includes full segment-level metric pipeline:
-             - Population%, Exposure%, AUC, Gini, Bad Rate, SHAP Metrics
-             - Drift Detection: Population Drift, Exposure Drift, PSI, SHAP Shift
-             - Performance Degradation: AUC Drop, Gini Drop, Calibration Drift
-             - Impact Scores: SIS, DIS, Root Cause Score
-             - SHAP Analysis for worst segments
-             - Executive Summary & Insights
-"""
-
 import time
 import numpy as np
 import pandas as pd
@@ -39,8 +23,8 @@ DATA_DIR = BASE_DIR / "data"
 OUTPUT_DIR = BASE_DIR / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-DEV_FILE = str(DATA_DIR / "development_data_NEW.csv")
-MON_FILE = str(DATA_DIR / "monitoring_2026_01.csv")
+DEV_FILE = str(DATA_DIR / "development_data_5000_shap.csv")
+MON_FILE = str(DATA_DIR / "monitoring_data_5000_shap.csv")
 
 # --------------------------------------------------------------------------
 # Static properties per technique (not data-driven)

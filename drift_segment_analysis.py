@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 BASE_DIR = Path(__file__).resolve().parent
-DEV_FILE = BASE_DIR / "development_data_5000_shap.csv"
-MON_FILE = BASE_DIR / "monitoring_data_5000_shap.csv"
+DEV_FILE = BASE_DIR / "data" / "development_data_5000_shap.csv"
+MON_FILE = BASE_DIR / "data" / "monitoring_data_5000_shap.csv"
 
 NUMERIC_FEATURES = [
     "age",
