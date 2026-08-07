@@ -1,0 +1,249 @@
+"""
+core/candidate_ranking.py
+=========================
+Severity scoring, significance-first ranking, and portfolio-impact view
+construction.
+
+Centralises the ranking pipeline that was duplicated across autoslicer,
+drift_tree, and gradient_boosting technique files.  Numerical behaviour is
+**identical** to the original implementations.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from metrics.significance import (
+    adjust_p_values_bh,
+    drift_confidence,
+    min_max_normalize,
+)
+from metrics.business_metrics import calculate_sis, calculate_dis
+from metrics.drift_metrics import interpret_psi
+
+
+# ---------------------------------------------------------------------------
+# Severity scoring
+# ---------------------------------------------------------------------------
+
+def compute_severity_scores(
+    evaluated: list[dict],
+    w_psi: float = 0.25,
+    w_business_impact: float = 0.25,
+    w_gini_drop: float = 0.20,
+    w_ks_drop: float = 0.15,
+    w_br_shift: float = 0.15,
+    significance_alpha: float = 0.05,
+) -> list[dict]:
+    """Compute BH-adjusted p-values, severity scores, significance flags,
+    SIS/DIS, and drift explanations for every evaluated candidate.
+
+    Returns a list of fully-scored record dicts ready for DataFrame conversion
+    and downstream ranking.
+
+    This function is the shared scoring pipeline used by autoslicer,
+    drift_tree, and gradient_boosting.  Feature-binning uses its own
+    bootstrap-based scoring and is NOT routed through here.
+    """
+    if not evaluated:
+        return []
+
+    # --- BH correction across the full evaluated pool ---
+    raw_p_br = np.array([e["br_pvalue"] for e in evaluated], dtype=float)
+    raw_p_ks = np.array([e["score_shift_pvalue"] for e in evaluated], dtype=float)
+    adj_p_br = adjust_p_values_bh(raw_p_br)
+    adj_p_ks = adjust_p_values_bh(raw_p_ks)
+
+    # --- Component arrays for min-max normalisation ---
+    psi_vals = [e["psi"] for e in evaluated]
+    gini_drops = [
+        max(0.0, -e["delta_gini"]) if not np.isnan(e["delta_gini"]) else 0.0
+        for e in evaluated
+    ]
+    ks_drops = [
+        max(0.0, -e["delta_ks"]) if not np.isnan(e["delta_ks"]) else 0.0
+        for e in evaluated
+    ]
+    br_shifts = [
+        abs(e["delta_br"]) if not np.isnan(e["delta_br"]) else 0.0
+        for e in evaluated
+    ]
+    bus_impacts = [
+        (e["pct_mon"] * e["mon_weight_pct"])
+        * (
+            1.0
+            + e["psi"]
+            + (
+                max(0.0, -e["delta_gini"])
+                if not np.isnan(e["delta_gini"])
+                else 0.0
+            )
+        )
+        for e in evaluated
+    ]
+
+    norm_psi = min_max_normalize(psi_vals)
+    norm_bus = min_max_normalize(bus_impacts)
+    norm_gini_drop = min_max_normalize(gini_drops)
+    norm_ks_drop = min_max_normalize(ks_drops)
+    norm_br_shift = min_max_normalize(br_shifts)
+
+    records: list[dict] = []
+    for i, e in enumerate(evaluated):
+        raw_severity = (
+            w_psi * norm_psi[i]
+            + w_business_impact * norm_bus[i]
+            + w_gini_drop * norm_gini_drop[i]
+            + w_ks_drop * norm_ks_drop[i]
+            + w_br_shift * norm_br_shift[i]
+        ) * 20.0
+
+        p_br_adj = adj_p_br[i] if not np.isnan(adj_p_br[i]) else 1.0
+        p_ks_adj = adj_p_ks[i] if not np.isnan(adj_p_ks[i]) else 1.0
+        confidence = drift_confidence(p_br_adj, p_ks_adj)
+        sis = calculate_sis(
+            e["psi"], e["delta_gini"], e["delta_ks"], e["delta_br"],
+            e["pct_mon"], e["mon_weight_pct"],
+        )
+        dis = calculate_dis(e["psi"], e["delta_gini"], e["delta_ks"], e["delta_br"])
+        severity = raw_severity * (0.5 + 0.5 * confidence)
+
+        is_significant = (
+            p_br_adj <= significance_alpha
+        ) or (p_ks_adj <= significance_alpha)
+
+        # --- Drift explanation ---
+        reasons = _build_drift_reasons(e, p_br_adj, significance_alpha)
+        explanation = " | ".join(reasons) if reasons else "Segment performance stable"
+        portfolio_impact = (
+            e["pct_mon"] * abs(e["delta_gini"])
+            if not np.isnan(e["delta_gini"])
+            else 0.0
+        )
+
+        record = {
+            **e,  # carry forward all raw metrics
+            "BadRate_pvalue_adj": p_br_adj,
+            "ScoreShift_pvalue_adj": p_ks_adj,
+            "Statistically_Significant": bool(is_significant),
+            "Business_Impact_Score": round(bus_impacts[i], 4),
+            "SIS_Raw": round(sis["raw"], 4),
+            "SIS_Business_Impact": round(sis["business_impact"], 4),
+            "DIS_Raw": round(dis, 4),
+            "Confidence_Score": round(confidence, 4),
+            "PSI_Interpretation": f"Population Share: {interpret_psi(e['psi'])}",
+            "Severity_Score": round(severity, 4),
+            "Portfolio_Impact_Score": round(portfolio_impact, 6),
+            "Drift_Explanation": explanation,
+        }
+        records.append(record)
+
+    return records
+
+
+def _build_drift_reasons(
+    e: dict, p_br_adj: float, significance_alpha: float
+) -> list[str]:
+    """Build human-readable drift-explanation reason strings."""
+    reasons: list[str] = []
+    if e["psi"] > 0.10:
+        reasons.append(
+            f"Population shift (Dev {e['pct_dev']:.1%} -> Mon {e['pct_mon']:.1%}, "
+            f"PSI {e['psi']:.4f})"
+        )
+    if not np.isnan(e["delta_gini"]) and e["delta_gini"] < -0.05:
+        reasons.append(
+            f"Gini drop {abs(e['delta_gini']):.4f} "
+            f"(Dev {e['gini_dev']:.4f} -> Mon {e['gini_mon']:.4f})"
+        )
+    if not np.isnan(e["delta_ks"]) and e["delta_ks"] < -0.05:
+        reasons.append(
+            f"KS drop {abs(e['delta_ks']):.4f} "
+            f"(Dev {e['ks_dev']:.4f} -> Mon {e['ks_mon']:.4f})"
+        )
+    if (
+        not np.isnan(e["delta_br"])
+        and abs(e["delta_br"]) > 0.03
+        and p_br_adj <= significance_alpha
+    ):
+        reasons.append(
+            f"Significant bad-rate shift "
+            f"(Dev {e['br_dev']:.2%} -> Mon {e['br_mon']:.2%}, p_adj={p_br_adj:.4f})"
+        )
+    if (
+        e["psi"] < 0.10
+        and not np.isnan(e["delta_gini"])
+        and abs(e["delta_gini"]) >= 0.05
+    ):
+        reasons.append(
+            "Population share stable (low PSI) but the score no longer separates "
+            "risk inside this segment -- concept drift, not exposure drift"
+        )
+    return reasons
+
+
+# ---------------------------------------------------------------------------
+# Significance-first ranking
+# ---------------------------------------------------------------------------
+
+def rank_records_significance_first(records: list[dict]) -> list[dict]:
+    """Sort records by (Statistically_Significant DESC, Severity_Score DESC).
+
+    This is the primary ranking used by autoslicer, drift_tree, and
+    gradient_boosting, ensuring significant segments always rank above
+    non-significant ones."""
+    return sorted(
+        records,
+        key=lambda r: (r["Statistically_Significant"], r["Severity_Score"]),
+        reverse=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Portfolio-impact view
+# ---------------------------------------------------------------------------
+
+def build_portfolio_view(
+    pool_df: pd.DataFrame, top_n: int
+) -> pd.DataFrame:
+    """Build the business-ranked portfolio-impact view from a deduplicated
+    pool of significant candidates."""
+    if pool_df.empty:
+        return pd.DataFrame()
+
+    sig_pool = pool_df[pool_df["Statistically_Significant"]]
+    if sig_pool.empty:
+        return pd.DataFrame()
+
+    portfolio_df = (
+        sig_pool.sort_values("Portfolio_Impact_Score", ascending=False)
+        .head(top_n)
+        .reset_index(drop=True)
+    )
+    if "Rank" in portfolio_df.columns:
+        portfolio_df["Rank"] = portfolio_df.index + 1
+    else:
+        portfolio_df.insert(0, "Rank", portfolio_df.index + 1)
+
+    columns_to_keep = [
+        "Rank",
+        "Segment_Definition",
+        "Mon_Pct",
+        "Delta_Gini",
+        "Delta_KS",
+        "Delta_BR",
+        "Portfolio_Impact_Score",
+        "SIS_Raw",
+        "Statistically_Significant",
+    ]
+    columns_to_keep = [c for c in columns_to_keep if c in portfolio_df.columns]
+
+    portfolio_df = portfolio_df[columns_to_keep].rename(
+        columns={
+            "Segment_Definition": "Segment",
+            "Mon_Pct": "Population_Pct",
+            "Portfolio_Impact_Score": "Severity_PopulationXGini",
+        }
+    )
+    return portfolio_df

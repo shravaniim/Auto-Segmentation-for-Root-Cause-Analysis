@@ -1,0 +1,11 @@
+Rank,Segment,Population_Pct,Delta_Gini,Delta_KS,Delta_BR,Severity_PopulationXGini,SIS_Raw,Statistically_Significant
+1,age >= 57 AND utilization_rate >= 49.51 AND employment_type = Salaried AND debt_to_income >= 25.3,0.081,-0.320505501,-0.207498754,0.04691358,0.025961,0.1044,TRUE
+2,utilization_rate >= 71.9 AND loan_to_value < 81.64,0.1862,-0.127522977,-0.086559712,0.025092783,0.023745,0.052,TRUE
+3,region = South AND utilization_rate >= 49.51 AND annual_income < 8.768e+04 AND loan_to_value < 81.64,0.0756,-0.301726266,-0.224063007,0.044021164,0.022811,0.1024,TRUE
+4,utilization_rate >= 71.9 AND loan_to_value < 68.2 AND debt_to_income >= 25.3 AND employment_type = Salaried,0.075,-0.302122419,-0.198152007,0.046516129,0.022659,0.0989,TRUE
+5,utilization_rate >= 71.9 AND annual_income < 8.768e+04,0.1908,-0.118132004,-0.052892519,0.039568569,0.02254,0.0476,TRUE
+6,region = South AND utilization_rate >= 49.51 AND employment_type = Salaried AND debt_to_income >= 25.3,0.0728,-0.303370478,-0.200642655,0.02938498,0.022085,0.0969,TRUE
+7,utilization_rate >= 71.9 AND debt_to_income < 54.8,0.1878,-0.117272861,-0.093153733,0.034496819,0.022024,0.0524,TRUE
+8,region = South AND utilization_rate >= 49.51 AND annual_income < 8.768e+04 AND age >= 33,0.0722,-0.302753012,-0.241902934,0.043091041,0.021859,0.105,TRUE
+9,utilization_rate >= 71.9 AND loan_to_value < 68.2 AND debt_to_income >= 25.3 AND age >= 33,0.0678,-0.320266186,-0.158763454,0.052556248,0.021714,0.0973,TRUE
+10,region = South AND utilization_rate >= 27.35 AND annual_income < 8.768e+04 AND bureau_score >= 659,0.1058,-0.204405016,-0.188101401,0.058601134,0.021626,0.0813,TRUE
