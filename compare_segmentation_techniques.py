@@ -12,8 +12,10 @@ from gradient_boosting_segmentation import run_gradient_boosting_segmentation, G
 
 from core.segment_insights import (
     compute_root_cause_scores,
+    
     generate_executive_summary,
 )
+from models.config import SchemaConfig
 from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -36,6 +38,28 @@ TECHNIQUE_PROPERTIES = {
     "Feature Binning":         {"Deterministic": "Yes",  "Explainability_Label": "High"},
     "Gradient Boosting":       {"Deterministic": "Yes",  "Explainability_Label": "Medium"},
 }
+
+REQUESTED_FEATURES = ["age", "income", "region", "occupation"]
+REQUESTED_NUMERIC_COLS = ["age", "income"]
+REQUESTED_CATEGORICAL_COLS = ["region", "occupation"]
+
+
+def build_feature_schema(dev_df):
+    """Create a schema that restricts segmentation to the four requested features."""
+    dev_columns = set(dev_df.columns)
+    exclude_cols = [
+        col for col in dev_df.columns
+        if col not in REQUESTED_FEATURES + ["target", "score", "ead", "customer_id"]
+    ]
+    return SchemaConfig(
+        target_col="target",
+        score_col="score",
+        weight_col="ead",
+        id_cols=["customer_id"] if "customer_id" in dev_columns else [],
+        exclude_cols=exclude_cols + ["target", "score", "ead", "customer_id"],
+        numeric_cols=REQUESTED_NUMERIC_COLS,
+        categorical_cols=REQUESTED_CATEGORICAL_COLS,
+    )
 
 
 def overall_score_100(row, col_weights):
@@ -183,20 +207,27 @@ def benchmark_all_techniques():
     print("=" * 115)
     print("Running 5 Segmentation Algorithms on Development & Monitoring Datasets...\n")
 
-    # Load base data (only dev_NEW and mon_2026_01)
+    # Load base data (development_data_5000_shap.csv and monitoring_data_5000_shap.csv)
     dev_df = pd.read_csv(DEV_FILE)
     mon_df = pd.read_csv(MON_FILE)
+    schema_cfg = build_feature_schema(dev_df)
     print(f"  Dev data: {len(dev_df)} rows | Mon data: {len(mon_df)} rows")
+    print(f"  Using features for segmentation: {', '.join(REQUESTED_FEATURES)}")
     print()
 
     print("--> [1/5] Running Drift Localization Tree (DLT)...")
-    res_dlt = run_drift_localization(dev_df, mon_df, cfg=DLTConfig(max_depth=3, min_samples_leaf=0.05))
+    res_dlt = run_drift_localization(
+        dev_df,
+        mon_df,
+        cfg=DLTConfig(schema=schema_cfg, max_depth=3, min_samples_leaf=0.05),
+    )
 
     print("--> [2/5] Running K-Means Clustering...")
-    res_kmeans = run_kmeans_segmentation(dev_df, mon_df, cfg=KMeansConfig())
+    res_kmeans = run_kmeans_segmentation(dev_df, mon_df, cfg=KMeansConfig(schema=schema_cfg))
 
     print("--> [3/5] Running AutoSlicer (Sub-group Discovery)...")
     slicer_cfg = SlicerConfig(
+        schema=schema_cfg,
         max_combo_depth=2,
         beam_width=10,
         param_grid={
@@ -207,10 +238,14 @@ def benchmark_all_techniques():
     res_slicer = run_autoslicer_segmentation(dev_df, mon_df, cfg=slicer_cfg)
 
     print("--> [4/5] Running Multi-Feature Binning...")
-    res_binning = run_feature_binning_segmentation(dev_df, mon_df, cfg=FeatureBinningConfig())
+    res_binning = run_feature_binning_segmentation(dev_df, mon_df, cfg=FeatureBinningConfig(schema=schema_cfg))
 
     print("--> [5/5] Running Gradient Boosting (GBDT)...")
-    res_gbdt = run_gradient_boosting_segmentation(dev_df, mon_df, cfg=GBConfig(n_estimators=5, max_depth=3))
+    res_gbdt = run_gradient_boosting_segmentation(
+        dev_df,
+        mon_df,
+        cfg=GBConfig(schema=schema_cfg, n_estimators=5, max_depth=3),
+    )
 
     techniques_runs = [
         ("Drift Localization Tree", res_dlt),
@@ -358,6 +393,31 @@ def benchmark_all_techniques():
     # Save all outputs
     safe_to_csv(summary_df, OUTPUT_DIR / 'segmentation_comparison_summary.csv')
     safe_to_csv(combined_segments_df, OUTPUT_DIR / 'all_techniques_segments_output.csv')
+
+    technique_output_map = {
+        'Drift Localization Tree': ('drift_segments_output.csv', 'drift_segments_output_portfolio_view.csv'),
+        'K-Means Clustering': ('kmeans_segments_output.csv', None),
+        'AutoSlicer': ('autoslicer_results.csv', 'autoslicer_results_portfolio_view.csv'),
+        'Feature Binning': ('feature_binning_segments_output.csv', None),
+        'Gradient Boosting': ('gradient_boosting_results.csv', 'gradient_boosting_results_portfolio_view.csv'),
+    }
+
+    for tech_name, res in techniques_runs:
+        segments_df = res.get('segments', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
+        if segments_df.empty:
+            segments_df = pd.DataFrame()
+        out_name, portfolio_name = technique_output_map[tech_name]
+        if not segments_df.empty:
+            safe_to_csv(standardize_columns(segments_df, tech_name), OUTPUT_DIR / out_name)
+        else:
+            safe_to_csv(pd.DataFrame(), OUTPUT_DIR / out_name)
+
+        if portfolio_name:
+            portfolio_df = res.get('portfolio_view', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
+            if portfolio_df.empty:
+                safe_to_csv(pd.DataFrame(), OUTPUT_DIR / portfolio_name)
+            else:
+                safe_to_csv(portfolio_df, OUTPUT_DIR / portfolio_name)
 
     if not exec_summary_df.empty:
         safe_to_csv(exec_summary_df, OUTPUT_DIR / 'executive_summary.csv')
