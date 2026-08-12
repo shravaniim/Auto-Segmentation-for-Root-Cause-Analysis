@@ -1,6 +1,13 @@
 import streamlit as st
-import tempfile
 import pandas as pd
+
+from models.config import (
+    SlicerConfig,
+    DLTConfig,
+    GBConfig,
+    KMeansConfig,
+    FeatureBinningConfig,
+)
 
 from autoslicer_segmentation import run_autoslicer_segmentation
 from kmeans_segmentation import run_kmeans_segmentation
@@ -8,22 +15,179 @@ from drift_localization_tree import run_drift_localization
 from feature_binning_segmentation import run_feature_binning_segmentation
 from gradient_boosting_segmentation import run_gradient_boosting_segmentation
 
-from compare_segmentation_techniques import benchmark_all_techniques
+from compare_segmentation_techniques import (
+    benchmark_all_techniques,
+    build_feature_schema,
+    DEV_FILE,
+    MON_FILE,
+    REQUESTED_FEATURES,
+)
 
 from llm.insight_generator import generate_insight
 
 
 # ============================================================
-# Technique Mapping
+# Technique Parameter Registry
 # ============================================================
+#
+# Approach 1 is fixed to development_data_5000_shap.csv /
+# monitoring_data_5000_shap.csv. Every technique's search space is
+# restricted (via build_feature_schema) to age/income/region/occupation.
+# target, score, ead, shap_*, customer_id are never used as
+# segmentation features -- only as metric/exposure inputs.
+#
+# "Decision Tree" is the user-facing label for the Gradient Boosting
+# technique (a tree-ensemble implementation already in techniques/).
 
-TECHNIQUE_MAP = {
-    "AutoSlicer": run_autoslicer_segmentation,
-    "KMeans": run_kmeans_segmentation,
-    "Drift Tree": run_drift_localization,
-    "Feature Binning": run_feature_binning_segmentation,
-    "Gradient Boosting": run_gradient_boosting_segmentation
+PARAM_SPECS = {
+    "AutoSlicer": {
+        "runner": run_autoslicer_segmentation,
+        "config_cls": SlicerConfig,
+        "rule_length_param": "max_combo_depth",
+        "rule_length_default": 3,
+        "rule_length_range": (1, 6),
+        "percentile_param": "numeric_bins",
+        "percentile_label": "Numeric Percentile Bins",
+        "percentile_kind": "slider",
+        "percentile_default": 4,
+        "percentile_range": (2, 10),
+        "auto_grid": {"max_combo_depth": [2, 3, 4], "beam_width": [10, 20, 30], "numeric_bins": [3, 4, 6]},
+    },
+    "Feature Binning": {
+        "runner": run_feature_binning_segmentation,
+        "config_cls": FeatureBinningConfig,
+        "rule_length_param": None,
+        "percentile_param": "max_bins",
+        "percentile_label": "Bin Granularity (Max Bins)",
+        "percentile_kind": "slider",
+        "percentile_default": 8,
+        "percentile_range": (3, 15),
+        "auto_grid": {"max_bins": [5, 8, 10, 12], "min_bin_pct": [0.01, 0.02, 0.03]},
+    },
+    "Decision Tree": {
+        "runner": run_gradient_boosting_segmentation,
+        "config_cls": GBConfig,
+        "rule_length_param": "max_depth",
+        "rule_length_default": 3,
+        "rule_length_range": (1, 6),
+        "percentile_param": "drift_quantiles",
+        "percentile_label": "Drift Scan Percentiles",
+        "percentile_kind": "multiselect",
+        "percentile_options": [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.99],
+        "percentile_default": [0.70, 0.85, 0.95],
+        "auto_grid": {
+            "max_depth": [2, 3, 4],
+            "n_estimators": [50, 100, 150],
+            "drift_quantiles": [(0.70, 0.85, 0.95), (0.60, 0.80, 0.95), (0.75, 0.90, 0.99)],
+        },
+    },
+    "Clustering": {
+        "runner": run_kmeans_segmentation,
+        "config_cls": KMeansConfig,
+        "rule_length_param": "max_tree_depth",
+        "rule_length_default": 4,
+        "rule_length_range": (1, 6),
+        "percentile_param": None,
+        "auto_grid": {"drift_weight": [0.2, 0.4, 0.6], "max_tree_depth": [3, 4, 5]},
+    },
+    "Drift Localization Tree": {
+        "runner": run_drift_localization,
+        "config_cls": DLTConfig,
+        "rule_length_param": "max_depth",
+        "rule_length_default": 3,
+        "rule_length_range": (1, 6),
+        "percentile_param": None,
+        "auto_grid": {"max_depth": [2, 3, 4]},
+    },
 }
+
+
+def build_config(tech, min_segment_size, ui_values, auto_optimize, dev_df, schema_cfg):
+    """Translate user inputs into the technique's real Config dataclass."""
+    spec = PARAM_SPECS[tech]
+    kwargs = {"schema": schema_cfg, "min_abs_count": int(min_segment_size)}
+
+    if tech == "Clustering":
+        kwargs["min_cluster_pct"] = round(max(0.01, min_segment_size / len(dev_df)), 4)
+
+    if tech == "Feature Binning":
+        # FeatureBinningConfig has no min_abs_count field; its equivalent
+        # minimum-segment-size gate is min_bin_pct (fraction of population).
+        kwargs.pop("min_abs_count")
+        kwargs["min_bin_pct"] = round(max(0.001, min_segment_size / len(dev_df)), 4)
+
+    if auto_optimize:
+        if spec["auto_grid"]:
+            kwargs["param_grid"] = spec["auto_grid"]
+    else:
+        if spec["rule_length_param"]:
+            kwargs[spec["rule_length_param"]] = ui_values["rule_length"]
+
+        if spec["percentile_param"] == "drift_quantiles":
+            values = ui_values.get("percentiles") or spec["percentile_default"]
+            kwargs["drift_quantiles"] = tuple(sorted(values))
+        elif spec["percentile_param"]:
+            kwargs[spec["percentile_param"]] = ui_values["percentile_value"]
+
+    return spec["config_cls"](**kwargs)
+
+
+def render_technique_results(tech, result):
+    st.subheader(f"📊 Execution Summary — {tech}")
+
+    overall = result.get("overall", {})
+    for key, value in overall.items():
+        st.write(f"**{key}** : {value}")
+
+    if "execution_time" in result:
+        st.write("**Execution Time** :", round(result["execution_time"], 2), "seconds")
+
+    if result.get("selected_params"):
+        st.write(
+            f"**Auto-selected parameters** (best of {result.get('params_evaluated', '?')} "
+            f"combinations, optimization score {result.get('optimization_score', 0):.4f}):"
+        )
+        st.json(result["selected_params"])
+
+    segments_df = result.get("segments", pd.DataFrame())
+
+    st.subheader(f"📋 Top Segments — {tech}")
+    st.dataframe(segments_df, use_container_width=True)
+
+    if not segments_df.empty:
+        st.download_button(
+            label="📥 Download Results CSV",
+            data=segments_df.to_csv(index=False),
+            file_name=f"{tech.replace(' ', '_')}_results.csv",
+            mime="text/csv",
+            key=f"download_{tech}",
+        )
+
+        try:
+            top_segment = segments_df.iloc[0]
+
+            segment_info = {
+                "Segment_Definition": str(
+                    top_segment.get("Segment_Definition", top_segment.get("segment", "Unknown Segment"))
+                ),
+                "PSI": float(top_segment.get("PSI", top_segment.get("psi", 0))),
+                "Delta_Gini": float(top_segment.get("Delta_Gini", top_segment.get("delta_gini", 0))),
+                "Delta_BR": float(top_segment.get("Delta_BR", 0)),
+                "Root_Cause_Feature": str(top_segment.get("Root_Cause_Feature", "Not Available")),
+                "Severity_Score": float(
+                    top_segment.get("Severity_Score", top_segment.get("final_score", 0))
+                ),
+                "Business_Impact_Score": float(top_segment.get("Business_Impact_Score", 0)),
+            }
+
+            with st.spinner("Generating AI Executive Summary..."):
+                llm_summary = generate_insight(segment_info)
+
+            st.subheader(f"🤖 AI Generated Executive Summary — {tech}")
+            st.markdown(llm_summary)
+
+        except Exception as e:
+            st.warning(f"Could not generate LLM summary: {e}")
 
 
 # ============================================================
@@ -57,216 +221,114 @@ with tab1:
 
     st.header("Segmentation Analysis")
 
-    dev_file = st.file_uploader(
-        "Upload Development Dataset",
-        type=["csv"],
-        key="dev_file"
+    dev_df = pd.read_csv(DEV_FILE)
+    mon_df = pd.read_csv(MON_FILE)
+    schema_cfg = build_feature_schema(dev_df)
+
+    st.caption(
+        f"Development: `development_data_5000_shap.csv` ({len(dev_df):,} rows) · "
+        f"Monitoring: `monitoring_data_5000_shap.csv` ({len(mon_df):,} rows). "
+        f"Segmentation features: **{', '.join(REQUESTED_FEATURES)}**. "
+        "`target`, `score`, `ead`, `shap_*` and `customer_id` are excluded from "
+        "segment rule discovery for every technique below — they are only used "
+        "to compute performance, drift and exposure metrics."
     )
 
-    mon_file = st.file_uploader(
-        "Upload Monitoring Dataset",
-        type=["csv"],
-        key="mon_file"
+    selected_techniques = st.multiselect(
+        "1. Segmentation Technique(s)",
+        list(PARAM_SPECS.keys()),
+        default=["AutoSlicer"],
     )
 
-    technique = st.selectbox(
-        "Segmentation Technique",
-        [
-            "AutoSlicer",
-            "KMeans",
-            "Drift Tree",
-            "Feature Binning",
-            "Gradient Boosting"
-        ]
+    min_segment_size = st.number_input(
+        "2. Minimum Segment Size (rows)",
+        min_value=10,
+        max_value=int(len(dev_df)),
+        value=150,
+        step=10,
+        help="Candidate segments with fewer development-period rows than this "
+             "are discarded, regardless of technique.",
     )
 
-    if st.button("Run Analysis"):
+    auto_optimize = st.checkbox(
+        "Auto-generate optimal values for Max Rule Length / Percentiles",
+        value=False,
+        help="Runs a grid search (core.parameter_optimization) over each "
+             "technique's search-space parameters and keeps the combination "
+             "with the highest aggregate Business Impact Score, instead of "
+             "using the manual values set below.",
+    )
 
-        if dev_file is None or mon_file is None:
-            st.error("Please upload both datasets.")
+    ui_values = {}
+
+    for technique in selected_techniques:
+        spec = PARAM_SPECS[technique]
+        with st.expander(f"{technique} Parameters", expanded=True):
+            values = {}
+
+            if auto_optimize:
+                st.info("Max Rule Length / Percentiles will be auto-selected via grid search.")
+            else:
+                if spec["rule_length_param"]:
+                    lo, hi = spec["rule_length_range"]
+                    values["rule_length"] = st.slider(
+                        "Max Rule Length",
+                        min_value=lo,
+                        max_value=hi,
+                        value=spec["rule_length_default"],
+                        key=f"rule_{technique}",
+                    )
+                else:
+                    st.caption("Max Rule Length — not applicable (single-feature segments only).")
+
+                if spec["percentile_param"] == "drift_quantiles":
+                    values["percentiles"] = st.multiselect(
+                        spec["percentile_label"],
+                        spec["percentile_options"],
+                        default=spec["percentile_default"],
+                        key=f"perc_{technique}",
+                    )
+                elif spec["percentile_param"]:
+                    lo, hi = spec["percentile_range"]
+                    values["percentile_value"] = st.slider(
+                        spec["percentile_label"],
+                        min_value=lo,
+                        max_value=hi,
+                        value=spec["percentile_default"],
+                        key=f"perc_{technique}",
+                    )
+                else:
+                    st.caption("Percentiles — not applicable for this technique.")
+
+            ui_values[technique] = values
+
+    if st.button("Run Segment Analysis"):
+
+        if not selected_techniques:
+            st.error("Select at least one segmentation technique.")
             st.stop()
 
-        with st.spinner(f"Running {technique}..."):
+        for technique in selected_techniques:
+            spec = PARAM_SPECS[technique]
 
-            dev_temp = tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".csv"
+            cfg = build_config(
+                technique,
+                min_segment_size,
+                ui_values.get(technique, {}),
+                auto_optimize,
+                dev_df,
+                schema_cfg,
             )
 
-            mon_temp = tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=".csv"
-            )
+            with st.spinner(f"Running {technique}..."):
+                result = spec["runner"](dev_df, mon_df, cfg=cfg)
 
-            dev_temp.write(dev_file.getvalue())
-            mon_temp.write(mon_file.getvalue())
+            st.success(f"{technique} Completed Successfully")
 
-            dev_temp.close()
-            mon_temp.close()
+            render_technique_results(technique, result)
 
-            selected_runner = TECHNIQUE_MAP[technique]
+            st.divider()
 
-            result = selected_runner(
-                dev_temp.name,
-                mon_temp.name
-            )
-
-        st.success(f"{technique} Completed Successfully")
-
-        # ====================================================
-        # Execution Summary
-        # ====================================================
-
-        st.subheader("📊 Execution Summary")
-
-        overall = result.get("overall", {})
-
-        for key, value in overall.items():
-            st.write(f"**{key}** : {value}")
-
-        if "execution_time" in result:
-            st.write(
-                "**Execution Time** :",
-                round(result["execution_time"], 2),
-                "seconds"
-            )
-
-        # ====================================================
-        # Segment Table
-        # ====================================================
-
-        segments_df = result.get(
-            "segments",
-            pd.DataFrame()
-        )
-
-        st.subheader("📋 Top Segments")
-
-        st.dataframe(
-            segments_df,
-            use_container_width=True
-        )
-
-        # ====================================================
-        # Download
-        # ====================================================
-
-        if not segments_df.empty:
-
-            st.download_button(
-                label="📥 Download Results CSV",
-                data=segments_df.to_csv(index=False),
-                file_name=f"{technique}_results.csv",
-                mime="text/csv"
-            )
-
-        # ====================================================
-        # LLM Summary
-        # ====================================================
-
-        if not segments_df.empty:
-
-            try:
-
-                top_segment = segments_df.iloc[0]
-
-                segment_info = {
-
-                    "Segment_Definition":
-                        str(
-                            top_segment.get(
-                                "Segment_Definition",
-                                top_segment.get(
-                                    "segment",
-                                    "Unknown Segment"
-                                )
-                            )
-                        ),
-
-                    "PSI":
-                        float(
-                            top_segment.get(
-                                "PSI",
-                                top_segment.get(
-                                    "psi",
-                                    0
-                                )
-                            )
-                        ),
-
-                    "Delta_Gini":
-                        float(
-                            top_segment.get(
-                                "Delta_Gini",
-                                top_segment.get(
-                                    "delta_gini",
-                                    0
-                                )
-                            )
-                        ),
-
-                    "Delta_BR":
-                        float(
-                            top_segment.get(
-                                "Delta_BR",
-                                0
-                            )
-                        ),
-
-                    "Root_Cause_Feature":
-                        str(
-                            top_segment.get(
-                                "Root_Cause_Feature",
-                                "Not Available"
-                            )
-                        ),
-
-                    "Severity_Score":
-                        float(
-                            top_segment.get(
-                                "Severity_Score",
-                                top_segment.get(
-                                    "final_score",
-                                    0
-                                )
-                            )
-                        ),
-
-                    "Business_Impact_Score":
-                        float(
-                            top_segment.get(
-                                "Business_Impact_Score",
-                                0
-                            )
-                        )
-                }
-
-                with st.spinner(
-                    "Generating AI Executive Summary..."
-                ):
-
-                    llm_summary = generate_insight(
-                        segment_info
-                    )
-
-                st.subheader(
-                    "🤖 AI Generated Executive Summary"
-                )
-
-                st.markdown(
-                    llm_summary
-                )
-
-            except Exception as e:
-
-                st.warning(
-                    f"Could not generate LLM summary: {e}"
-                )
-
-
-# ============================================================
-# TAB 2
-# ============================================================
 
 # ============================================================
 # TAB 2

@@ -430,6 +430,11 @@ class FeatureBinningConfig:
 
     min_bin_pct: float = 0.01
 
+    # Reject bins broader than this population percentage (dev or mon side).
+    # Matches the same cap enforced by core/candidate_filtering.py for the
+    # other four techniques.
+    max_segment_pct: float = 0.35
+
     # ------------------------------------------------------------------------
     # Output
     # ------------------------------------------------------------------------

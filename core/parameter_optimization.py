@@ -71,7 +71,7 @@ def optimize_parameters(
     logger.info("Starting parameter optimization over %d combinations.", len(grid))
     
     best_score = -float('inf')
-    best_result = pd.DataFrame()
+    best_result = None
     best_params = None
 
     for i, params in enumerate(grid, 1):
@@ -105,5 +105,12 @@ def optimize_parameters(
     if best_result is None:
         logger.warning("All combinations failed or yielded no segments. Falling back to default.")
         return technique_func(dev_df, mon_df, config, *args, **kwargs)
-        
+
+    # Surface the winning parameter combination for UI/CSV transparency
+    # instead of only logging it.
+    if hasattr(best_result, "extra") and isinstance(best_result.extra, dict):
+        best_result.extra["selected_params"] = best_params
+        best_result.extra["params_evaluated"] = len(grid)
+        best_result.extra["optimization_score"] = best_score
+
     return best_result

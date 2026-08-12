@@ -164,7 +164,7 @@ def standardize_columns(df, tech_name):
         # Exposure %
         'Dev_Exposure_Pct': 'Dev_Exposure_Pct', 'dev_weight_pct': 'Dev_Exposure_Pct',
         'Mon_Exposure_Pct': 'Mon_Exposure_Pct', 'mon_weight_pct': 'Mon_Exposure_Pct',
-        'exposure_pct': 'Mon_Exposure_Pct',  # Feature Binning uses this
+        'exposure_pct': 'Mon_Exposure_Pct', 'Exposure_Pct': 'Mon_Exposure_Pct',  # Feature Binning uses this
         # Drift metrics
         'Exposure_Drift': 'Exposure_Drift', 'exposure_drift': 'Exposure_Drift',
         'Calibration_Drift': 'Calibration_Drift', 'calibration_drift': 'Calibration_Drift',
@@ -300,7 +300,7 @@ def benchmark_all_techniques():
 
             # Population % and Exposure % (top segment)
             pop_pct = _first_nonnull_value(top_segment, ['Mon_Pct', 'pct_mon', 'mon_pct'])
-            exp_pct = _first_nonnull_value(top_segment, ['Mon_Exposure_Pct', 'mon_weight_pct', 'exposure_pct'])
+            exp_pct = _first_nonnull_value(top_segment, ['Mon_Exposure_Pct', 'mon_weight_pct', 'exposure_pct', 'Exposure_Pct'])
 
             top_segment_definition = _resolve_segment_definition(top_segment)
             num_segments = len(df_seg)

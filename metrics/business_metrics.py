@@ -53,7 +53,10 @@ def calculate_sis(
     business_impact = calculate_business_impact(pct_mon, mon_weight_pct, psi, delta_gini)
     gini_drop = max(0.0, -delta_gini) if not np.isnan(delta_gini) else 0.0
     ks_drop = max(0.0, -delta_ks) if not np.isnan(delta_ks) else 0.0
-    br_shift = abs(delta_br) if not np.isnan(delta_br) else 0.0
+    # delta_br = mon_br - dev_br; only a POSITIVE shift (more defaults in
+    # monitoring) is deterioration. A negative shift is bad-rate
+    # improvement and must not score as severity.
+    br_shift = max(0.0, delta_br) if not np.isnan(delta_br) else 0.0
 
     raw = (
         default_weights["psi"] * psi_val
@@ -74,9 +77,17 @@ def calculate_sis(
 def calculate_dis(
     psi: float, delta_gini: float, delta_ks: float, delta_br: float
 ) -> float:
-    """Drift Impact Score — simple additive composite."""
+    """Drift Impact Score — simple additive composite.
+
+    All performance/bad-rate terms are one-sided (deterioration only):
+    delta = monitoring - development, so a positive delta_br (more
+    defaults) or negative delta_gini/delta_ks (worse discrimination)
+    increases DIS. Improvements score 0, not a symmetric penalty.
+    """
     psi_val = max(0.0, psi) if not np.isnan(psi) else 0.0
-    return float(psi_val + max(0.0, -delta_gini) + abs(delta_ks) + abs(delta_br))
+    ks_drop = max(0.0, -delta_ks) if not np.isnan(delta_ks) else 0.0
+    br_shift = max(0.0, delta_br) if not np.isnan(delta_br) else 0.0
+    return float(psi_val + max(0.0, -delta_gini) + ks_drop + br_shift)
 
 
 def calculate_root_cause_score(

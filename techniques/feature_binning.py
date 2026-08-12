@@ -1137,6 +1137,7 @@ def point_estimate_metrics(
     score_col,
     weight_col,
     min_bin_pct=0.01,
+    max_segment_pct=0.35,
 ):
     """
     Calculate point-estimate performance, drift and business metrics for
@@ -1357,6 +1358,18 @@ def point_estimate_metrics(
         dev_pct,
         mon_pct,
     )
+
+    # ----------------------------------------------------------------------
+    # Segment size cap (both dev and mon side), matching
+    # core/candidate_filtering.py's max_segment_pct gate for the other
+    # techniques.
+    # ----------------------------------------------------------------------
+
+    if (
+        dev_pct > max_segment_pct
+        or mon_pct > max_segment_pct
+    ):
+        return None
 
     # ----------------------------------------------------------------------
     # Return metrics
@@ -2121,10 +2134,14 @@ def score_segments(
             ):
                 return np.nan
 
+            # calculate_sis expects delta = monitoring - development
+            # (shared convention). This module's own delta_gini/delta_ks
+            # are dev - mon (see point_estimate_metrics docstring), so
+            # negate them at this boundary only.
             return calculate_sis(
                 row["psi"],
-                row["delta_gini"],
-                row["delta_ks"],
+                -row["delta_gini"],
+                -row["delta_ks"],
                 row["delta_br"],
                 row["mon_pct"],
                 row.get(
@@ -2151,8 +2168,8 @@ def score_segments(
 
             return calculate_sis(
                 row["psi"],
-                row["delta_gini"],
-                row["delta_ks"],
+                -row["delta_gini"],
+                -row["delta_ks"],
                 row["delta_br"],
                 row["mon_pct"],
                 row.get(
@@ -2179,8 +2196,8 @@ def score_segments(
 
             return calculate_dis(
                 row["psi"],
-                row["delta_gini"],
-                row["delta_ks"],
+                -row["delta_gini"],
+                -row["delta_ks"],
                 row["delta_br"],
             )
 
@@ -2563,6 +2580,9 @@ class FeatureBinningTechnique(
                     min_bin_pct=(
                         cfg.min_bin_pct
                     ),
+                    max_segment_pct=(
+                        cfg.max_segment_pct
+                    ),
                 )
             )
 
@@ -2907,6 +2927,22 @@ class FeatureBinningTechnique(
         scored = scored.head(
             cfg.top_n
         )
+
+        # ==================================================================
+        # STANDARDIZE SIGN CONVENTION FOR PUBLIC OUTPUT
+        # ==================================================================
+        # Internally this module uses delta = dev - mon (positive =
+        # deterioration, see point_estimate_metrics docstring). Every other
+        # technique's public output uses delta = mon - dev (negative =
+        # deterioration). Flip here, at the output boundary only, so
+        # Delta_AUC/Delta_Gini/Delta_KS mean the same thing regardless of
+        # technique. All internal scoring above (deterioration_score,
+        # Root_Cause_Score, rank, final_score) already consumed the
+        # dev-mon values and is unaffected by this flip.
+
+        for _col in ("delta_auc", "delta_gini", "delta_ks"):
+            if _col in scored.columns:
+                scored[_col] = -scored[_col]
 
         # ==================================================================
         # STANDARDIZED EXPORT-FRIENDLY COLUMNS

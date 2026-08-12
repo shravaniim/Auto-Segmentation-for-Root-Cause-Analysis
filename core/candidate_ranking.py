@@ -65,8 +65,11 @@ def compute_severity_scores(
         max(0.0, -e["delta_ks"]) if not np.isnan(e["delta_ks"]) else 0.0
         for e in evaluated
     ]
+    # delta_br = mon_br - dev_br; only a positive shift (higher bad rate in
+    # monitoring) is deterioration. A negative shift is improvement and
+    # must not contribute to severity.
     br_shifts = [
-        abs(e["delta_br"]) if not np.isnan(e["delta_br"]) else 0.0
+        max(0.0, e["delta_br"]) if not np.isnan(e["delta_br"]) else 0.0
         for e in evaluated
     ]
     bus_impacts = [

@@ -45,6 +45,7 @@ Important design principles
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Optional, Sequence
@@ -1197,9 +1198,14 @@ def evaluate_segment(
         # Full feature-level drift details
         # -------------------------------------------------------------------
 
-        "feature_drift_details": rc[
-            "feature_drift_details"
-        ],
+        # Serialized to a JSON string here (not left as a list of dicts):
+        # pandas .to_csv() would otherwise write the Python repr of the
+        # list, and Streamlit's dataframe grid stringifies each dict via
+        # JS as "[object Object]". A JSON string displays and exports
+        # correctly in both paths.
+        "feature_drift_details": json.dumps(
+            rc["feature_drift_details"]
+        ),
 
         # -------------------------------------------------------------------
         # Backward compatibility

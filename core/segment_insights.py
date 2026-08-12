@@ -138,7 +138,7 @@ def generate_executive_summary(
         else:
             _df['_abs_gini_drop'] = 0.0
         sort_cols = [col for col in [seg_rank_col, '_abs_gini_drop'] if col in _df.columns]
-        top_n = _df.nlargest(5, sort_cols[0]) if sort_cols else _df.head(5)
+        top_n = _df.nlargest(5, sort_cols) if sort_cols else _df.head(5)
 
         for _, r in top_n.iterrows():
             seg_def = next(
@@ -150,11 +150,14 @@ def generate_executive_summary(
                  if c in r and not pd.isna(r[c]) and str(r[c]) not in ('None', 'nan', 'N/A')),
                 'N/A'
             )
+            _delta_gini = r.get('Delta_Gini', r.get('delta_gini', np.nan))
             worst_segs.append({
                 'Segment': seg_def,
                 'Technique': r.get('Technique', 'Unknown'),
                 'Severity_Score': r.get(seg_rank_col, 0.0),
-                'Gini_Drop': r.get('Delta_Gini', r.get('delta_gini', np.nan)),
+                # Delta_Gini = mon - dev (negative = deterioration).
+                # 'Gini_Drop' must be positive-when-worse, matching its label.
+                'Gini_Drop': max(0.0, -_delta_gini) if not pd.isna(_delta_gini) else np.nan,
                 'Exposure_Drift': r.get('Exposure_Drift', r.get('exposure_drift', np.nan)),
                 'Calibration_Drift': r.get('Calibration_Drift', r.get('calibration_drift', np.nan)),
                 'Root_Cause_Feature': root_feat,

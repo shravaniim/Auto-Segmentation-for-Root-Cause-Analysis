@@ -1,8 +1,12 @@
+import os
+from dotenv import load_dotenv
 from openai import AzureOpenAI
 
-API_ENDPOINT = "https://your-azure-openai-endpoint.openai.azure.com/"  # Replace with your Azure OpenAI endpoint
-API_KEY = "AZURE_OPENAI_API_KEY"
-API_VERSION = "2024-12-01-preview"
+load_dotenv()
+
+API_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
+API_KEY = os.environ["AZURE_OPENAI_API_KEY"]
+API_VERSION = os.environ["AZURE_OPENAI_API_VERSION"]
 
 client = AzureOpenAI(
     azure_endpoint=API_ENDPOINT,
