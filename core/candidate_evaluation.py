@@ -1107,6 +1107,17 @@ def evaluate_segment(
         dev_sub, mon_sub, shap_cols or []
     )
 
+    # Baseline-aligned inputs (see segment_discovery/segment_root_cause_analysis.py):
+    # mean feature-drift PSI (not just the max/top feature) and mean absolute
+    # SHAP shift, both feeding the shared SIS/DIS/Root_Cause_Score formulas.
+    _feature_psis = [d["psi"] for d in rc["feature_drift_details"]]
+    mean_feature_psi = float(np.mean(_feature_psis)) if _feature_psis else 0.0
+
+    _shap_deltas = [
+        abs(d["delta"]) for d in shap_shift.get("details", []) if not np.isnan(d["delta"])
+    ]
+    mean_shap_shift = float(np.mean(_shap_deltas)) if _shap_deltas else 0.0
+
     return {
 
         # -------------------------------------------------------------------
@@ -1179,6 +1190,8 @@ def evaluate_segment(
         "dev_weight_pct": dev_weight_pct,
         "mon_weight_pct": mon_weight_pct,
         "exposure_drift": exposure_drift,
+        "mean_feature_psi": mean_feature_psi,
+        "mean_shap_shift": mean_shap_shift,
 
         # -------------------------------------------------------------------
         # Calibration

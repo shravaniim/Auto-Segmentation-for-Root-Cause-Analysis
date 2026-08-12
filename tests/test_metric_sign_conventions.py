@@ -14,12 +14,13 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from core.candidate_ranking import compute_severity_scores
 from core.parameter_optimization import optimize_parameters
 from core.segment_insights import generate_executive_summary
 from compare_segmentation_techniques import standardize_columns
-from metrics.business_metrics import calculate_sis, calculate_dis
+from metrics.business_metrics import calculate_sis, calculate_dis, calculate_confidence
 from techniques.feature_binning import point_estimate_metrics
 
 
@@ -27,43 +28,52 @@ from techniques.feature_binning import point_estimate_metrics
 # Bad-rate / KS sign convention (delta = monitoring - development)
 # ---------------------------------------------------------------------------
 
-def test_bad_rate_improvement_does_not_inflate_sis():
-    improved = calculate_sis(0.05, 0.0, 0.0, -0.5, 0.1, 0.1)   # bad rate fell
-    neutral = calculate_sis(0.05, 0.0, 0.0, 0.0, 0.1, 0.1)
-    deteriorated = calculate_sis(0.05, 0.0, 0.0, 0.5, 0.1, 0.1)  # bad rate rose
-
-    assert improved["br_shift"] == 0.0
-    assert improved["raw"] == neutral["raw"]
-    assert deteriorated["br_shift"] == 0.5
-    assert deteriorated["raw"] > improved["raw"]
+def test_confidence_caps_at_one_and_scales_with_sqrt_n():
+    assert calculate_confidence(100) == 1.0
+    assert calculate_confidence(400) == 1.0  # capped, not > 1
+    assert calculate_confidence(25) == 0.5   # sqrt(25/100)
+    assert calculate_confidence(0) == 0.0
 
 
-def test_bad_rate_and_ks_improvement_do_not_inflate_dis():
-    assert calculate_dis(0.0, 0.0, 0.0, -0.5) == 0.0   # bad rate improved
-    assert calculate_dis(0.0, 0.0, 0.0, 0.5) == 0.5     # bad rate deteriorated
-    assert calculate_dis(0.0, 0.0, 0.5, 0.0) == 0.0     # KS improved (positive delta)
-    assert calculate_dis(0.0, 0.0, -0.5, 0.0) == 0.5    # KS deteriorated (negative delta)
+def test_sis_is_zero_when_auc_did_not_worsen():
+    improved = calculate_sis(auc_drop=-0.1, exposure_factor=1.0, pct_mon=0.2, confidence=1.0)
+    flat = calculate_sis(auc_drop=0.0, exposure_factor=1.0, pct_mon=0.2, confidence=1.0)
+    deteriorated = calculate_sis(auc_drop=0.1, exposure_factor=1.0, pct_mon=0.2, confidence=1.0)
+
+    assert improved == 0.0  # auc_drop floored at 0 inside calculate_sis
+    assert flat == 0.0
+    assert deteriorated == pytest.approx(0.1 * 1.0 * 0.2 * 1.0)
 
 
-def _evaluated_row(delta_br):
+def test_dis_floors_at_zero_when_population_did_not_grow():
+    shrinking = calculate_dis(population_drift=-0.05, auc_drop=0.1, exposure_factor=1.0, total_psi=0.0)
+    growing = calculate_dis(population_drift=0.05, auc_drop=0.1, exposure_factor=1.0, total_psi=1.0)
+
+    assert shrinking == 0.0  # negative product floored at 0
+    assert growing == pytest.approx(0.05 * 0.1 * 1.0 * 2.0)
+
+
+def _evaluated_row(delta_auc, n_mon=400):
     return {
-        "psi": 0.24, "delta_gini": -0.02, "delta_ks": 0.03, "delta_br": delta_br,
+        "psi": 0.24, "delta_gini": -0.02, "delta_ks": 0.03, "delta_br": 0.01,
+        "delta_auc": delta_auc, "n_mon": n_mon,
+        "mean_feature_psi": 0.1, "mean_shap_shift": 0.1,
         "pct_dev": 0.08, "pct_mon": 0.27, "mon_weight_pct": 0.4,
         "gini_dev": 0.0, "gini_mon": -0.02, "ks_dev": 0.05, "ks_mon": 0.08,
-        "br_dev": 0.72, "br_mon": 0.72 + delta_br,
+        "br_dev": 0.72, "br_mon": 0.73,
         "br_pvalue": 0.0001, "score_shift_pvalue": 0.5,
     }
 
 
-def test_bad_rate_improvement_does_not_win_severity_ranking():
-    # Mirrors the observed "region = West" case: a large bad-rate *fall*
-    # must not outrank a genuine (smaller) bad-rate deterioration.
-    improved = _evaluated_row(delta_br=-0.566)
-    deteriorated = _evaluated_row(delta_br=0.10)
+def test_auc_improvement_does_not_win_severity_ranking():
+    # delta_auc = mon - dev; positive means AUC improved and must score 0
+    # on the SIS/DIS auc_drop term, not outrank a genuine deterioration.
+    improved = _evaluated_row(delta_auc=0.15)
+    deteriorated = _evaluated_row(delta_auc=-0.05)
 
     records = compute_severity_scores([improved, deteriorated])
-    imp_rec = next(r for r in records if r["delta_br"] < 0)
-    det_rec = next(r for r in records if r["delta_br"] > 0)
+    imp_rec = next(r for r in records if r["delta_auc"] > 0)
+    det_rec = next(r for r in records if r["delta_auc"] < 0)
 
     assert det_rec["Severity_Score"] > imp_rec["Severity_Score"]
 

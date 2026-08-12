@@ -1,6 +1,6 @@
 Technique,Top_Segment_Definition,Segments_Generated,Top_Segment_Pop_Pct,Top_Segment_Exp_Pct,Max_PSI,Max_Gini_Drop,Max_KS_Drop,Max_BR_Shift_Pct,Exposure_Drift,Calibration_Drift,Root_Cause_Feature,Root_Cause_Score,Business_Impact_Score,Top_Segment_EAD,Execution_Time_Sec,Deterministic,Explainability,Overall_Score_100,Severity_Rank
-Drift Localization Tree,income < 3.798e+04 AND age < 28.5,4,13.32,19.48,0.1416,0.2861,0.0322,-57.98%,0.1564,-0.6785,income,0.0198,0.0296,"$251,194,072",0.2272,Yes,High,13.6,5
-K-Means Clustering,Cluster_4: age < 47.5 AND occupation != Business AND income < 7.52e+04 AND occupation != Salaried,7,27.4,40.17,0.241,0.3056,0.2557,-56.57%,0.3081,-0.7351,age,0.013,0.1387,"$517,872,657",7.7472,Yes*,Medium,68.7,2
-AutoSlicer,region = West,10,27.4,40.17,0.241,0.2606,0.2468,-56.57%,0.3081,-0.7351,age,0.013,0.1387,"$517,872,657",3.1522,Yes,Medium,52.0,3
-Feature Binning,63509.0 < income <= 64863.0,14,1.22,0.89,0.241,0.3299,0.3904,-64.09%,-0.0023,1.1921,income,0.0,0.0089,"$11,461,047",15.8858,Yes,High,90.0,1
-Gradient Boosting,income < 5.001e+04 AND age < 26.5,10,18.7,27.56,0.1815,0.2861,0.0671,-62.33%,0.2173,-0.6937,income,0.0107,0.0609,"$355,396,910",0.9587,Yes,Medium,38.7,4
+Drift Localization Tree,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5,4,11.44,16.85,0.1416,0.2861,0.0322,-57.98%,0.1282,-0.7532,age,0.7678,0.0237,"$217,252,800",0.2253,Yes,High,12.0,5
+K-Means Clustering,Cluster_6: age < 47.5 AND occupation != Business AND income < 7.52e+04 AND occupation = Salaried,7,17.52,13.22,0.241,0.3056,0.2557,-56.57%,0.0029,-0.23,region,0.9251,0.03,"$170,435,233",9.8174,Yes*,Medium,58.9,2
+AutoSlicer,region = West,10,27.4,40.17,0.241,0.2606,0.2468,-56.57%,0.3081,-0.7351,age,0.6668,0.1387,"$517,872,657",2.4403,Yes,Medium,45.0,3
+Feature Binning,region = West,14,27.4,40.17,0.241,0.3299,0.3904,-64.09%,0.3081,-2.3553,region,0.8035,0.4017,"$517,872,657",14.6315,Yes,High,100.0,1
+Gradient Boosting,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5,10,11.44,16.85,0.1815,0.2861,0.0671,-62.33%,0.1282,-0.7532,age,0.7838,0.0237,"$217,252,800",0.8066,Yes,Medium,34.7,4

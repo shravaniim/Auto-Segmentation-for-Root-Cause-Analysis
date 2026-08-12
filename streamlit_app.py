@@ -18,6 +18,7 @@ from gradient_boosting_segmentation import run_gradient_boosting_segmentation
 from compare_segmentation_techniques import (
     benchmark_all_techniques,
     build_feature_schema,
+    standardize_columns,
     DEV_FILE,
     MON_FILE,
     REQUESTED_FEATURES,
@@ -163,6 +164,23 @@ def render_technique_results(tech, result):
             mime="text/csv",
             key=f"download_{tech}",
         )
+
+        chart_df = standardize_columns(segments_df.copy(), tech)
+
+        st.subheader(f"🌡️ Segment x Metric Heatmap — {tech}")
+        fig = segment_metric_heatmap(chart_df)
+        if fig is not None:
+            st.pyplot(fig)
+
+        st.subheader(f"🫧 Bubble Chart — {tech}")
+        fig = segment_bubble_chart(chart_df)
+        if fig is not None:
+            st.pyplot(fig)
+
+        st.subheader(f"💧 SIS Waterfall — {tech} (Top Segment)")
+        fig = sis_waterfall_chart(chart_df.iloc[0])
+        if fig is not None:
+            st.pyplot(fig)
 
         try:
             top_segment = segments_df.iloc[0]
@@ -391,6 +409,40 @@ with tab2:
             ranking_df,
             use_container_width=True
         )
+
+        # ====================================================
+        # Top 10 Per Technique (5 x 10 = 50 rows)
+        # ====================================================
+
+        st.subheader("📋 Top 10 Segments per Technique")
+
+        if not combined_segments_df.empty:
+            _rank_col = (
+                "Severity_Score" if "Severity_Score" in combined_segments_df.columns
+                else "Business_Impact_Score"
+            )
+            top10_per_technique = pd.concat(
+                [
+                    g.nlargest(10, _rank_col).assign(Rank_Within_Technique=range(1, len(g.nlargest(10, _rank_col)) + 1))
+                    for _, g in combined_segments_df.groupby("Technique")
+                ],
+                ignore_index=True,
+            )
+            display_cols = [
+                c for c in [
+                    "Technique", "Rank_Within_Technique", "Segment_Definition",
+                    "PSI", "Delta_Gini", "Delta_KS", "Delta_BR",
+                    "Root_Cause_Score", "Severity_Score", "SIS_Raw", "DIS_Raw",
+                ] if c in top10_per_technique.columns
+            ]
+            st.dataframe(top10_per_technique[display_cols], use_container_width=True)
+            st.download_button(
+                label="📥 Download Top 10 x 5 CSV",
+                data=top10_per_technique[display_cols].to_csv(index=False),
+                file_name="top10_per_technique.csv",
+                mime="text/csv",
+                key="download_top10_per_technique",
+            )
 
         # ====================================================
         # Overall Score Chart

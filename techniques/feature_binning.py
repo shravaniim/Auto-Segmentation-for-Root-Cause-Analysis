@@ -68,6 +68,8 @@ from metrics.drift_metrics import (
 from metrics.business_metrics import (
     calculate_sis,
     calculate_dis,
+    calculate_confidence,
+    calculate_root_cause_score,
 )
 
 from metrics.significance import (
@@ -1597,6 +1599,17 @@ def point_estimate_metrics(
         "top_shap_shift_feature": shap_shift["top_shift_feature"],
         "top_shap_shift_psi": shap_shift["top_shift_psi"],
         "feature_drift_details": json.dumps(feature_drift["feature_drift_details"]),
+        "mean_feature_psi": (
+            float(np.mean([d["psi"] for d in feature_drift["feature_drift_details"]]))
+            if feature_drift["feature_drift_details"] else 0.0
+        ),
+        "mean_shap_shift": (
+            float(np.mean([
+                abs(d["delta"]) for d in shap_shift.get("details", [])
+                if not np.isnan(d["delta"])
+            ]))
+            if shap_shift.get("details") else 0.0
+        ),
 
         # Monitoring defaults
         "default_count": int(
@@ -2192,6 +2205,10 @@ def score_segments(
     # Business metrics
     # ----------------------------------------------------------------------
 
+    # Baseline-aligned SIS/DIS (segment_discovery/segment_root_cause_analysis.py).
+    # FB's own delta_auc is dev - mon (positive = deterioration) at this point
+    # in the pipeline -- the sign flip to the shared mon - dev convention
+    # happens later, at the output boundary, so no negation is needed here.
     def calculate_sis_safe(
         row
     ):
@@ -2203,51 +2220,24 @@ def score_segments(
             ):
                 return np.nan
 
-            # calculate_sis expects delta = monitoring - development
-            # (shared convention). This module's own delta_gini/delta_ks
-            # are dev - mon (see point_estimate_metrics docstring), so
-            # negate them at this boundary only.
+            auc_drop = (
+                max(0.0, row["delta_auc"])
+                if not np.isnan(row["delta_auc"])
+                else 0.0
+            )
+            confidence = calculate_confidence(
+                row.get("mon_count", 0.0)
+            )
+            exposure_pct = row.get("exposure_pct", 0.0)
+            exposure_factor = (
+                exposure_pct if exposure_pct and exposure_pct > 0 else 1.0
+            )
             return calculate_sis(
-                row["psi"],
-                -row["delta_gini"],
-                -row["delta_ks"],
-                row["delta_br"],
+                auc_drop,
+                exposure_factor,
                 row["mon_pct"],
-                row.get(
-                    "exposure_pct",
-                    0.0,
-                ),
-            )[
-                "raw"
-            ]
-
-        except Exception:
-            return np.nan
-
-    def calculate_sis_business_safe(
-        row
-    ):
-
-        try:
-
-            if np.isnan(
-                row["psi"]
-            ):
-                return np.nan
-
-            return calculate_sis(
-                row["psi"],
-                -row["delta_gini"],
-                -row["delta_ks"],
-                row["delta_br"],
-                row["mon_pct"],
-                row.get(
-                    "exposure_pct",
-                    0.0,
-                ),
-            )[
-                "business_impact"
-            ]
+                confidence,
+            )
 
         except Exception:
             return np.nan
@@ -2263,11 +2253,22 @@ def score_segments(
             ):
                 return np.nan
 
+            auc_drop = (
+                max(0.0, row["delta_auc"])
+                if not np.isnan(row["delta_auc"])
+                else 0.0
+            )
+            exposure_pct = row.get("exposure_pct", 0.0)
+            exposure_factor = (
+                exposure_pct if exposure_pct and exposure_pct > 0 else 1.0
+            )
+            population_drift = row["mon_pct"] - row["dev_pct"]
+            total_psi = row.get("mean_feature_psi", 0.0)
             return calculate_dis(
-                row["psi"],
-                -row["delta_gini"],
-                -row["delta_ks"],
-                row["delta_br"],
+                population_drift,
+                auc_drop,
+                exposure_factor,
+                total_psi,
             )
 
         except Exception:
@@ -2277,13 +2278,6 @@ def score_segments(
         "sis_raw"
     ] = df.apply(
         calculate_sis_safe,
-        axis=1,
-    )
-
-    df[
-        "sis_business_impact"
-    ] = df.apply(
-        calculate_sis_business_safe,
         axis=1,
     )
 
@@ -2318,26 +2312,27 @@ def score_segments(
         ] = 0.0
 
     # ----------------------------------------------------------------------
-    # Final score
+    # Root Cause Score / Final score
     # ----------------------------------------------------------------------
+    # Baseline-aligned (segment_discovery/segment_root_cause_analysis.py):
+    # weighted sum of min-max-normalized SIS, DIS, mean feature-drift PSI,
+    # and mean SHAP shift -- computed across this technique's own candidate
+    # pool. deterioration_score/confidence_score above are kept as their
+    # own diagnostic columns but no longer drive ranking.
+
+    norm_sis = min_max_normalize(df["sis_raw"].fillna(0.0))
+    norm_dis = min_max_normalize(df["dis_raw"].fillna(0.0))
+    norm_psi = min_max_normalize(df["mean_feature_psi"].fillna(0.0))
+    norm_shap = min_max_normalize(df["mean_shap_shift"].fillna(0.0))
+
+    df["root_cause_score_raw"] = [
+        calculate_root_cause_score(norm_sis[i], norm_dis[i], norm_psi[i], norm_shap[i])
+        for i in range(len(df))
+    ]
 
     df[
         "final_score"
-    ] = (
-        df[
-            "deterioration_score"
-        ]
-        * df[
-            "confidence_score"
-        ]
-        * (
-            0.5
-            + 0.5
-            * df[
-                "business_impact_score"
-            ]
-        )
-    )
+    ] = df["root_cause_score_raw"] * 20.0
 
     # ----------------------------------------------------------------------
     # Rank
@@ -2968,35 +2963,14 @@ class FeatureBinningTechnique(
         #     max(0, delta_gini)
         # ------------------------------------------------------------------
 
-        gini_deterioration = (
-            scored[
-                "delta_gini"
-            ]
-            .apply(
-                lambda g:
-                max(
-                    0.0,
-                    g,
-                )
-                if not pd.isna(g)
-                else 0.0
-            )
-        )
-
+        # Baseline-aligned Root Cause Score (see score_segments() above):
+        # weighted, pool-normalized composite of SIS/DIS/feature-PSI/SHAP
+        # shift -- same formula and same column as the other 4 techniques.
         scored[
             "Root_Cause_Score"
-        ] = (
-            scored[
-                "psi"
-            ]
-            * (
-                1.0
-                + gini_deterioration
-            )
-            * scored[
-                "mon_pct"
-            ]
-        ).round(
+        ] = scored[
+            "root_cause_score_raw"
+        ].round(
             6
         )
 

@@ -16,10 +16,14 @@ import pandas as pd
 
 from metrics.significance import (
     adjust_p_values_bh,
-    drift_confidence,
     min_max_normalize,
 )
-from metrics.business_metrics import calculate_sis, calculate_dis
+from metrics.business_metrics import (
+    calculate_confidence,
+    calculate_sis,
+    calculate_dis,
+    calculate_root_cause_score,
+)
 from metrics.drift_metrics import interpret_psi
 
 
@@ -55,23 +59,8 @@ def compute_severity_scores(
     adj_p_br = adjust_p_values_bh(raw_p_br)
     adj_p_ks = adjust_p_values_bh(raw_p_ks)
 
-    # --- Component arrays for min-max normalisation ---
-    psi_vals = [e["psi"] for e in evaluated]
-    gini_drops = [
-        max(0.0, -e["delta_gini"]) if not np.isnan(e["delta_gini"]) else 0.0
-        for e in evaluated
-    ]
-    ks_drops = [
-        max(0.0, -e["delta_ks"]) if not np.isnan(e["delta_ks"]) else 0.0
-        for e in evaluated
-    ]
-    # delta_br = mon_br - dev_br; only a positive shift (higher bad rate in
-    # monitoring) is deterioration. A negative shift is improvement and
-    # must not contribute to severity.
-    br_shifts = [
-        max(0.0, e["delta_br"]) if not np.isnan(e["delta_br"]) else 0.0
-        for e in evaluated
-    ]
+    # --- Business_Impact_Score: unrelated to SIS/DIS/Root Cause Score below,
+    # kept as its own diagnostic (population share x exposure share x drift). ---
     bus_impacts = [
         (e["pct_mon"] * e["mon_weight_pct"])
         * (
@@ -86,32 +75,49 @@ def compute_severity_scores(
         for e in evaluated
     ]
 
+    # --- Baseline-aligned SIS / DIS / Root Cause Score ---
+    # (segment_discovery/segment_root_cause_analysis.py is the reference
+    # implementation these formulas are ported from.)
+    auc_drops = [
+        max(0.0, -e["delta_auc"]) if not np.isnan(e["delta_auc"]) else 0.0
+        for e in evaluated
+    ]
+    confidences = [calculate_confidence(e["n_mon"]) for e in evaluated]
+    # No weight column -> mon_weight_pct is always 0.0; treat exposure as
+    # neutral (1.0) rather than zeroing out every score.
+    exposure_factors = [
+        e["mon_weight_pct"] if e["mon_weight_pct"] > 0 else 1.0 for e in evaluated
+    ]
+    population_drifts = [e["pct_mon"] - e["pct_dev"] for e in evaluated]
+    psi_vals = [e["mean_feature_psi"] for e in evaluated]
+    shap_vals = [e["mean_shap_shift"] for e in evaluated]
+
+    sis_vals = [
+        calculate_sis(auc_drops[i], exposure_factors[i], e["pct_mon"], confidences[i])
+        for i, e in enumerate(evaluated)
+    ]
+    dis_vals = [
+        calculate_dis(population_drifts[i], auc_drops[i], exposure_factors[i], psi_vals[i])
+        for i in range(len(evaluated))
+    ]
+
+    norm_sis = min_max_normalize(sis_vals)
+    norm_dis = min_max_normalize(dis_vals)
     norm_psi = min_max_normalize(psi_vals)
-    norm_bus = min_max_normalize(bus_impacts)
-    norm_gini_drop = min_max_normalize(gini_drops)
-    norm_ks_drop = min_max_normalize(ks_drops)
-    norm_br_shift = min_max_normalize(br_shifts)
+    norm_shap = min_max_normalize(shap_vals)
 
     records: list[dict] = []
     for i, e in enumerate(evaluated):
-        raw_severity = (
-            w_psi * norm_psi[i]
-            + w_business_impact * norm_bus[i]
-            + w_gini_drop * norm_gini_drop[i]
-            + w_ks_drop * norm_ks_drop[i]
-            + w_br_shift * norm_br_shift[i]
-        ) * 20.0
+        root_cause_score = calculate_root_cause_score(
+            norm_sis[i], norm_dis[i], norm_psi[i], norm_shap[i]
+        )
+        # Same scale (0-20) the rest of the app already uses for
+        # within-technique ranking; Root_Cause_Score (0-1) is what's
+        # comparable across techniques (see cross_technique_analysis.py).
+        severity = root_cause_score * 20.0
 
         p_br_adj = adj_p_br[i] if not np.isnan(adj_p_br[i]) else 1.0
         p_ks_adj = adj_p_ks[i] if not np.isnan(adj_p_ks[i]) else 1.0
-        confidence = drift_confidence(p_br_adj, p_ks_adj)
-        sis = calculate_sis(
-            e["psi"], e["delta_gini"], e["delta_ks"], e["delta_br"],
-            e["pct_mon"], e["mon_weight_pct"],
-        )
-        dis = calculate_dis(e["psi"], e["delta_gini"], e["delta_ks"], e["delta_br"])
-        severity = raw_severity * (0.5 + 0.5 * confidence)
-
         is_significant = (
             p_br_adj <= significance_alpha
         ) or (p_ks_adj <= significance_alpha)
@@ -131,11 +137,11 @@ def compute_severity_scores(
             "ScoreShift_pvalue_adj": p_ks_adj,
             "Statistically_Significant": bool(is_significant),
             "Business_Impact_Score": round(bus_impacts[i], 4),
-            "SIS_Raw": round(sis["raw"], 4),
-            "SIS_Business_Impact": round(sis["business_impact"], 4),
-            "DIS_Raw": round(dis, 4),
-            "Confidence_Score": round(confidence, 4),
+            "SIS_Raw": round(sis_vals[i], 6),
+            "DIS_Raw": round(dis_vals[i], 6),
+            "Confidence_Score": round(confidences[i], 4),
             "PSI_Interpretation": f"Population Share: {interpret_psi(e['psi'])}",
+            "root_cause_score": round(root_cause_score, 6),
             "Severity_Score": round(severity, 4),
             "Portfolio_Impact_Score": round(portfolio_impact, 6),
             "Drift_Explanation": explanation,
