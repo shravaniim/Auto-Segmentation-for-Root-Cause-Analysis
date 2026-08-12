@@ -1,0 +1,109 @@
+<svg viewBox="0 0 1680 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data are evaluated by five segmentation techniques in parallel; each candidate segment is scored for drift, performance and business impact, then merged into one cross-technique ranked report.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
+    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
+    .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
+    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
+    .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
+    .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow); }
+    .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#475569; }
+    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:20px; font-weight:700; fill:#0f172a; }
+    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12.5px; fill:#475569; }
+  </style>
+
+  <text x="840" y="30" text-anchor="middle" class="h1">Auto-Segmentation for Root Cause Analysis — High-Level Flow</text>
+  <text x="840" y="50" text-anchor="middle" class="h2">Five techniques discover candidate segments in parallel; every candidate is scored the same way and merged into one ranked report.</text>
+
+  <!-- Sources -->
+  <rect class="box" x="40" y="200" width="180" height="56"/>
+  <text x="130" y="223" text-anchor="middle" class="title">Development Data</text>
+  <text x="130" y="240" text-anchor="middle" class="sub">age, income, region,</text>
+  <text x="130" y="252" text-anchor="middle" class="sub">occupation, target, score, ead</text>
+
+  <rect class="box" x="40" y="280" width="180" height="56"/>
+  <text x="130" y="303" text-anchor="middle" class="title">Monitoring Data</text>
+  <text x="130" y="320" text-anchor="middle" class="sub">same schema,</text>
+  <text x="130" y="332" text-anchor="middle" class="sub">later scoring period</text>
+
+  <path class="edge" d="M220,228 L268,262"/>
+  <path class="edge" d="M220,308 L268,298"/>
+
+  <!-- Schema guard -->
+  <rect class="box" x="270" y="224" width="200" height="112"/>
+  <text x="370" y="248" text-anchor="middle" class="title">Feature Schema Guard</text>
+  <text x="370" y="267" text-anchor="middle" class="sub">keeps: age, income,</text>
+  <text x="370" y="280" text-anchor="middle" class="sub">region, occupation</text>
+  <text x="370" y="299" text-anchor="middle" class="sub">excludes: target, score, ead,</text>
+  <text x="370" y="312" text-anchor="middle" class="sub">shap_*, customer_id</text>
+  <text x="370" y="331" text-anchor="middle" class="sub" font-style="italic">(no label leakage into segments)</text>
+
+  <!-- Fan out to 5 techniques -->
+  <rect class="box" x="520" y="96" width="230" height="56"/>
+  <text x="635" y="120" text-anchor="middle" class="title">AutoSlicer</text>
+  <text x="635" y="137" text-anchor="middle" class="sub">beam-search rule combos</text>
+
+  <rect class="box" x="520" y="174" width="230" height="56"/>
+  <text x="635" y="198" text-anchor="middle" class="title">Feature Binning</text>
+  <text x="635" y="215" text-anchor="middle" class="sub">per-feature bins</text>
+
+  <rect class="box" x="520" y="252" width="230" height="56"/>
+  <text x="635" y="276" text-anchor="middle" class="title">Decision Tree (GBDT)</text>
+  <text x="635" y="293" text-anchor="middle" class="sub">gradient-boosted leaves</text>
+
+  <rect class="box" x="520" y="330" width="230" height="56"/>
+  <text x="635" y="354" text-anchor="middle" class="title">Clustering (K-Means)</text>
+  <text x="635" y="371" text-anchor="middle" class="sub">drift-aware clusters</text>
+
+  <rect class="box" x="520" y="408" width="230" height="56"/>
+  <text x="635" y="432" text-anchor="middle" class="title">Drift Localization Tree</text>
+  <text x="635" y="449" text-anchor="middle" class="sub">dev-vs-mon split tree</text>
+
+  <path class="edge" d="M470,280 L500,124 L518,124"/>
+  <path class="edge" d="M470,280 L500,202 L518,202"/>
+  <path class="edge" d="M470,280 L518,280"/>
+  <path class="edge" d="M470,280 L500,358 L518,358"/>
+  <path class="edge" d="M470,280 L500,436 L518,436"/>
+  <text x="480" y="272" class="edgelabel">run in</text>
+  <text x="480" y="284" class="edgelabel">parallel</text>
+
+  <!-- Metrics & scoring -->
+  <path class="edge" d="M750,124 L800,124 L800,255 L818,255"/>
+  <path class="edge" d="M750,202 L800,202 L800,268 L818,268"/>
+  <path class="edge" d="M750,280 L818,280"/>
+  <path class="edge" d="M750,358 L800,358 L800,292 L818,292"/>
+  <path class="edge" d="M750,436 L800,436 L800,305 L818,305"/>
+
+  <rect class="box" x="820" y="228" width="260" height="104"/>
+  <text x="950" y="252" text-anchor="middle" class="title">Segment Metrics &amp; Impact Scoring</text>
+  <text x="950" y="271" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
+  <text x="950" y="286" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
+  <text x="950" y="305" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
+  <text x="950" y="322" text-anchor="middle" class="sub" font-style="italic">per candidate segment</text>
+
+  <!-- Cross-technique ranking -->
+  <path class="edge" d="M1080,280 L1138,280"/>
+  <text x="1088" y="272" class="edgelabel">10 worst per</text>
+  <text x="1088" y="296" class="edgelabel">technique</text>
+
+  <rect class="box" x="1140" y="228" width="230" height="104"/>
+  <text x="1255" y="252" text-anchor="middle" class="title">Cross-Technique Ranking</text>
+  <text x="1255" y="271" text-anchor="middle" class="sub">normalize Root Cause Score</text>
+  <text x="1255" y="286" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
+  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 overall</text>
+
+  <!-- Executive insights -->
+  <path class="edge" d="M1370,280 L1418,280"/>
+  <text x="1378" y="272" class="edgelabel">renders</text>
+
+  <rect class="accent" x="1420" y="228" width="220" height="104"/>
+  <text x="1530" y="252" text-anchor="middle" class="titleAccent">Executive Insights</text>
+  <text x="1530" y="271" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
+  <text x="1530" y="286" text-anchor="middle" class="sub">executive summary</text>
+  <text x="1530" y="305" text-anchor="middle" class="sub">AI narrative (Streamlit)</text>
+</svg>

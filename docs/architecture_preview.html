@@ -1,0 +1,362 @@
+<title>Auto-Segmentation — Architecture Reference</title>
+<style>
+  :root {
+    --ink: #1b2430;
+    --ink-soft: #4b5563;
+    --paper: #f5f3ee;
+    --card: #ffffff;
+    --rule: #d8d3c7;
+    --accent: #1f6f5c;
+    --accent-soft: #e4efe9;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #e8e6df;
+      --ink-soft: #a9afb8;
+      --paper: #14181d;
+      --rule: #2a3138;
+      --accent: #5fb89c;
+      --accent-soft: #1c2b27;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e8e6df;
+    --ink-soft: #a9afb8;
+    --paper: #14181d;
+    --rule: #2a3138;
+    --accent: #5fb89c;
+    --accent-soft: #1c2b27;
+  }
+  :root[data-theme="light"] {
+    --ink: #1b2430;
+    --ink-soft: #4b5563;
+    --paper: #f5f3ee;
+    --rule: #d8d3c7;
+    --accent: #1f6f5c;
+    --accent-soft: #e4efe9;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 32px 80px;
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15;
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+  .lede {
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 68ch;
+    margin: 0;
+  }
+
+  header {
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 40px;
+  }
+
+  section { margin-bottom: 56px; }
+  section h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 23px;
+    margin: 0 0 6px;
+  }
+  section > .section-lede {
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    max-width: 72ch;
+    margin: 0 0 20px;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    overflow-x: auto;
+  }
+  figure svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    min-width: 760px;
+  }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--rule);
+  }
+
+  .glossary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px 32px;
+  }
+  @media (max-width: 720px) { .glossary { grid-template-columns: 1fr; } }
+  .term {
+    padding: 14px 16px;
+    background: var(--accent-soft);
+    border-radius: 8px;
+  }
+  .term dt {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .term dd {
+    margin: 0;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 20px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-family: var(--font-mono);
+  }
+</style>
+
+<header>
+  <p class="eyebrow">Architecture Reference — Auto-Segmentation for Root Cause Analysis</p>
+  <h1>How the engine turns raw monitoring data into a ranked root-cause report</h1>
+  <p class="lede">Two views of the same pipeline: the business-level flow, and the mechanics underneath each step. Prepared for presentation.</p>
+</header>
+
+<section>
+  <h2>1 — High-level flow</h2>
+  <p class="section-lede">Five segmentation techniques discover candidate segments independently; every candidate is scored the same way and merged into one ranked report.</p>
+  <figure>
+<svg viewBox="0 0 1680 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data are evaluated by five segmentation techniques in parallel; each candidate segment is scored for drift, performance and business impact, then merged into one cross-technique ranked report.">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
+    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
+    .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
+    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
+    .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
+    .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow); }
+    .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#475569; }
+    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:20px; font-weight:700; fill:#0f172a; }
+    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12.5px; fill:#475569; }
+  </style>
+  <text x="840" y="30" text-anchor="middle" class="h1">Auto-Segmentation for Root Cause Analysis — High-Level Flow</text>
+  <text x="840" y="50" text-anchor="middle" class="h2">Five techniques discover candidate segments in parallel; every candidate is scored the same way and merged into one ranked report.</text>
+  <rect class="box" x="40" y="200" width="180" height="56"/>
+  <text x="130" y="223" text-anchor="middle" class="title">Development Data</text>
+  <text x="130" y="240" text-anchor="middle" class="sub">age, income, region,</text>
+  <text x="130" y="252" text-anchor="middle" class="sub">occupation, target, score, ead</text>
+  <rect class="box" x="40" y="280" width="180" height="56"/>
+  <text x="130" y="303" text-anchor="middle" class="title">Monitoring Data</text>
+  <text x="130" y="320" text-anchor="middle" class="sub">same schema,</text>
+  <text x="130" y="332" text-anchor="middle" class="sub">later scoring period</text>
+  <path class="edge" d="M220,228 L268,262"/>
+  <path class="edge" d="M220,308 L268,298"/>
+  <rect class="box" x="270" y="224" width="200" height="112"/>
+  <text x="370" y="248" text-anchor="middle" class="title">Feature Schema Guard</text>
+  <text x="370" y="267" text-anchor="middle" class="sub">keeps: age, income,</text>
+  <text x="370" y="280" text-anchor="middle" class="sub">region, occupation</text>
+  <text x="370" y="299" text-anchor="middle" class="sub">excludes: target, score, ead,</text>
+  <text x="370" y="312" text-anchor="middle" class="sub">shap_*, customer_id</text>
+  <text x="370" y="331" text-anchor="middle" class="sub" font-style="italic">(no label leakage into segments)</text>
+  <rect class="box" x="520" y="96" width="230" height="56"/>
+  <text x="635" y="120" text-anchor="middle" class="title">AutoSlicer</text>
+  <text x="635" y="137" text-anchor="middle" class="sub">beam-search rule combos</text>
+  <rect class="box" x="520" y="174" width="230" height="56"/>
+  <text x="635" y="198" text-anchor="middle" class="title">Feature Binning</text>
+  <text x="635" y="215" text-anchor="middle" class="sub">per-feature bins</text>
+  <rect class="box" x="520" y="252" width="230" height="56"/>
+  <text x="635" y="276" text-anchor="middle" class="title">Decision Tree (GBDT)</text>
+  <text x="635" y="293" text-anchor="middle" class="sub">gradient-boosted leaves</text>
+  <rect class="box" x="520" y="330" width="230" height="56"/>
+  <text x="635" y="354" text-anchor="middle" class="title">Clustering (K-Means)</text>
+  <text x="635" y="371" text-anchor="middle" class="sub">drift-aware clusters</text>
+  <rect class="box" x="520" y="408" width="230" height="56"/>
+  <text x="635" y="432" text-anchor="middle" class="title">Drift Localization Tree</text>
+  <text x="635" y="449" text-anchor="middle" class="sub">dev-vs-mon split tree</text>
+  <path class="edge" d="M470,280 L500,124 L518,124"/>
+  <path class="edge" d="M470,280 L500,202 L518,202"/>
+  <path class="edge" d="M470,280 L518,280"/>
+  <path class="edge" d="M470,280 L500,358 L518,358"/>
+  <path class="edge" d="M470,280 L500,436 L518,436"/>
+  <text x="480" y="272" class="edgelabel">run in</text>
+  <text x="480" y="284" class="edgelabel">parallel</text>
+  <path class="edge" d="M750,124 L800,124 L800,255 L818,255"/>
+  <path class="edge" d="M750,202 L800,202 L800,268 L818,268"/>
+  <path class="edge" d="M750,280 L818,280"/>
+  <path class="edge" d="M750,358 L800,358 L800,292 L818,292"/>
+  <path class="edge" d="M750,436 L800,436 L800,305 L818,305"/>
+  <rect class="box" x="820" y="228" width="260" height="104"/>
+  <text x="950" y="252" text-anchor="middle" class="title">Segment Metrics &amp; Impact Scoring</text>
+  <text x="950" y="271" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
+  <text x="950" y="286" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
+  <text x="950" y="305" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
+  <text x="950" y="322" text-anchor="middle" class="sub" font-style="italic">per candidate segment</text>
+  <path class="edge" d="M1080,280 L1138,280"/>
+  <text x="1088" y="272" class="edgelabel">10 worst per</text>
+  <text x="1088" y="296" class="edgelabel">technique</text>
+  <rect class="box" x="1140" y="228" width="230" height="104"/>
+  <text x="1255" y="252" text-anchor="middle" class="title">Cross-Technique Ranking</text>
+  <text x="1255" y="271" text-anchor="middle" class="sub">normalize Root Cause Score</text>
+  <text x="1255" y="286" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
+  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 overall</text>
+  <path class="edge" d="M1370,280 L1418,280"/>
+  <text x="1378" y="272" class="edgelabel">renders</text>
+  <rect class="accent" x="1420" y="228" width="220" height="104"/>
+  <text x="1530" y="252" text-anchor="middle" class="titleAccent">Executive Insights</text>
+  <text x="1530" y="271" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
+  <text x="1530" y="286" text-anchor="middle" class="sub">executive summary</text>
+  <text x="1530" y="305" text-anchor="middle" class="sub">AI narrative (Streamlit)</text>
+</svg>
+    <figcaption>Development and monitoring data are restricted to leakage-safe features before any technique sees them. Five techniques run in parallel, each producing scored candidate segments, which converge into one cross-technique ranking and the executive dashboard.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>2 — Low-level pipeline</h2>
+  <p class="section-lede">Every technique runs the same six-step contract. The one place that needs care is the hand-off between technique-level and cross-technique ranking.</p>
+  <figure>
+<svg viewBox="0 0 1680 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Each technique independently generates, filters, evaluates, deduplicates and scores candidate segments; the five technique-level top-10 lists are then pooled and re-ranked by normalized Root Cause Score, not by raw Severity Score, because Severity Score is on a different scale per technique.">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+  <style>
+    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
+    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
+    .warn { fill:#fef2f2; stroke:#b91c1c; stroke-width:1.5; stroke-dasharray:5,4; rx:8; }
+    .title { font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:700; fill:#0f172a; }
+    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:13.5px; font-weight:700; fill:#14532d; }
+    .sub { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#334155; }
+    .warnText { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#7f1d1d; }
+    .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow2); }
+    .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:10px; fill:#475569; }
+    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:19px; font-weight:700; fill:#0f172a; }
+    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12px; fill:#475569; }
+    .band { font-family:Arial,Helvetica,sans-serif; font-size:11px; font-weight:700; fill:#475569; }
+  </style>
+  <text x="840" y="26" text-anchor="middle" class="h1">Low-Level Pipeline — From Raw Candidate to Ranked Root Cause</text>
+  <text x="840" y="45" text-anchor="middle" class="h2">Every technique runs the same six-step evaluation contract; only the final cross-technique step needs a metric that is actually comparable between techniques.</text>
+  <rect x="25" y="86" width="1320" height="150" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,4" rx="10"/>
+  <text x="45" y="78" class="band">RUNS INDEPENDENTLY FOR EACH OF THE 5 TECHNIQUES</text>
+  <rect class="box" x="40" y="108" width="190" height="104"/>
+  <text x="135" y="130" text-anchor="middle" class="title">1. Candidate Generation</text>
+  <text x="135" y="150" text-anchor="middle" class="sub">beam search / bins /</text>
+  <text x="135" y="163" text-anchor="middle" class="sub">tree leaves / clusters</text>
+  <text x="135" y="182" text-anchor="middle" class="sub" font-style="italic">→ dev_mask, mon_mask</text>
+  <rect class="box" x="260" y="108" width="190" height="104"/>
+  <text x="355" y="130" text-anchor="middle" class="title">2. Size Filter</text>
+  <text x="355" y="150" text-anchor="middle" class="sub">min segment size</text>
+  <text x="355" y="163" text-anchor="middle" class="sub">≤ 35% of population</text>
+  <text x="355" y="182" text-anchor="middle" class="sub" font-style="italic">(max_segment_pct, both sides)</text>
+  <rect class="box" x="480" y="108" width="190" height="104"/>
+  <text x="575" y="130" text-anchor="middle" class="title">3. Per-Segment Evaluation</text>
+  <text x="575" y="150" text-anchor="middle" class="sub">dev_sub vs mon_sub</text>
+  <text x="575" y="163" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · ΔBR</text>
+  <text x="575" y="176" text-anchor="middle" class="sub">Calibration · Exposure</text>
+  <text x="575" y="192" text-anchor="middle" class="sub" font-style="italic">per-segment SHAP shift</text>
+  <rect class="box" x="700" y="108" width="190" height="104"/>
+  <text x="795" y="130" text-anchor="middle" class="title">4. Jaccard Dedup</text>
+  <text x="795" y="150" text-anchor="middle" class="sub">drop candidate if overlap</text>
+  <text x="795" y="163" text-anchor="middle" class="sub">≥ 0.70 with one already kept</text>
+  <text x="795" y="182" text-anchor="middle" class="sub" font-style="italic">(same rule, all 5 techniques)</text>
+  <rect class="box" x="920" y="108" width="190" height="104"/>
+  <text x="1015" y="130" text-anchor="middle" class="title">5. Scoring</text>
+  <text x="1015" y="150" text-anchor="middle" class="sub">SIS · DIS · Root Cause Score</text>
+  <text x="1015" y="169" text-anchor="middle" class="sub" font-weight="700">Severity Score</text>
+  <text x="1015" y="184" text-anchor="middle" class="sub" font-style="italic">(scale set by this technique)</text>
+  <rect class="box" x="1140" y="108" width="190" height="104"/>
+  <text x="1235" y="130" text-anchor="middle" class="title">6. Technique Top-N</text>
+  <text x="1235" y="150" text-anchor="middle" class="sub">ranked by Severity Score</text>
+  <text x="1235" y="163" text-anchor="middle" class="sub">within this technique only</text>
+  <path class="edge" d="M230,160 L258,160"/>
+  <path class="edge" d="M450,160 L478,160"/>
+  <path class="edge" d="M670,160 L698,160"/>
+  <path class="edge" d="M890,160 L918,160"/>
+  <path class="edge" d="M1110,160 L1138,160"/>
+  <path class="edge" d="M1235,212 L1235,270 L565,270 L565,338"/>
+  <text x="850" y="263" text-anchor="middle" class="edgelabel">×5 — one Top-N list per technique, not yet comparable to each other</text>
+  <rect class="box" x="480" y="340" width="210" height="90"/>
+  <text x="585" y="364" text-anchor="middle" class="title">Cross-Technique Pool</text>
+  <text x="585" y="384" text-anchor="middle" class="sub">≤ 50 candidates</text>
+  <text x="585" y="398" text-anchor="middle" class="sub">(10 × 5 techniques)</text>
+  <path class="edge" d="M690,385 L718,385"/>
+  <rect class="box" x="720" y="340" width="230" height="90"/>
+  <text x="835" y="364" text-anchor="middle" class="title">Normalize Root Cause Score</text>
+  <text x="835" y="384" text-anchor="middle" class="sub">min–max across the whole pool</text>
+  <text x="835" y="398" text-anchor="middle" class="sub">(same formula, every technique)</text>
+  <path class="edge" d="M950,385 L978,385"/>
+  <rect class="accent" x="980" y="340" width="210" height="90"/>
+  <text x="1085" y="364" text-anchor="middle" class="titleAccent">Overall Top 10</text>
+  <text x="1085" y="384" text-anchor="middle" class="sub">ranked by</text>
+  <text x="1085" y="398" text-anchor="middle" class="sub">Normalized Root Cause Score</text>
+  <path class="edge" d="M1190,385 L1218,385"/>
+  <rect class="accent" x="1220" y="340" width="230" height="90"/>
+  <text x="1335" y="364" text-anchor="middle" class="titleAccent">Executive Summary</text>
+  <text x="1335" y="384" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
+  <text x="1335" y="398" text-anchor="middle" class="sub">AI narrative (Streamlit)</text>
+  <path d="M835,430 L835,455" stroke="#b91c1c" stroke-width="1.5" fill="none" stroke-dasharray="5,4"/>
+  <rect class="warn" x="590" y="458" width="490" height="70"/>
+  <text x="835" y="478" text-anchor="middle" class="warnText" font-weight="700">Why not rank this step by Severity Score?</text>
+  <text x="835" y="495" text-anchor="middle" class="warnText">Feature Binning's Severity Score is ~0–1; the other four techniques' is ~0–20.</text>
+  <text x="835" y="510" text-anchor="middle" class="warnText">Root Cause Score uses one formula and comparable inputs for all 5 — it's the only fair ranking key here.</text>
+</svg>
+    <figcaption>Each technique's own Top-N is ranked by its own Severity Score — fine within one technique, but Feature Binning's Severity Score sits on a ~0–1 scale while the other four sit on ~0–20. The cross-technique step re-ranks by Normalized Root Cause Score instead, which uses one formula and comparable inputs across all five techniques.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Key terms</h2>
+  <p class="section-lede">The metrics referenced above, defined once.</p>
+  <dl class="glossary">
+    <div class="term"><dt>PSI</dt><dd>Population Stability Index — how much a segment's share of the population shifted between development and monitoring.</dd></div>
+    <div class="term"><dt>Bad Rate</dt><dd>Share of defaults/events in a segment; compared development vs. monitoring.</dd></div>
+    <div class="term"><dt>AUC / Gini / KS</dt><dd>Model discrimination metrics, each compared development vs. monitoring to measure performance decay.</dd></div>
+    <div class="term"><dt>Calibration Drift</dt><dd>Change in the Actual/Expected ratio — whether predicted risk still matches observed risk.</dd></div>
+    <div class="term"><dt>SIS</dt><dd>Segment Impact Score — weighted composite of drift and performance decay for one segment.</dd></div>
+    <div class="term"><dt>DIS</dt><dd>Drift Impact Score — additive composite of population and performance drift.</dd></div>
+    <div class="term"><dt>Root Cause Score</dt><dd>Feature-level PSI × Gini decay × population share — the metric used to compare segments across techniques.</dd></div>
+    <div class="term"><dt>Severity Score</dt><dd>Each technique's own internal ranking score — comparable within that technique only, not across techniques.</dd></div>
+  </dl>
+</section>
+
+<footer>
+  autosegmentation/docs/architecture_high_level.svg · architecture_low_level.svg
+</footer>
