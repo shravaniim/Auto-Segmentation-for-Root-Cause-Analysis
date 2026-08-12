@@ -2,7 +2,7 @@
 
 An engine that automatically finds **which customer segments are responsible for a risk model's performance decline** — replacing the manual, one-segment-at-a-time investigation analysts do today with a run that discovers, scores, and ranks candidate segments across five different techniques.
 
-> See [`docs/architecture_high_level.svg`](docs/architecture_high_level.svg) and [`docs/architecture_low_level.svg`](docs/architecture_low_level.svg) for diagrams of the flow, or open [`docs/architecture_preview.html`](docs/architecture_preview.html) to view both together with a glossary.
+> See [`docs/architecture_high_level.svg`](docs/architecture_high_level.svg) and [`docs/architecture_low_level.svg`](docs/architecture_low_level.svg) for diagrams of the flow, or open [`docs/architecture_preview.html`](docs/architecture_preview.html) to view both together with a glossary. For every metric's exact formula, range, and baseline validation status, see [`docs/METRICS.md`](docs/METRICS.md).
 
 ## The problem
 
