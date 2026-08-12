@@ -84,7 +84,7 @@
   <text x="950" y="271" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
   <text x="950" y="286" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
   <text x="950" y="305" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
-  <text x="950" y="322" text-anchor="middle" class="sub" font-style="italic">per candidate segment</text>
+  <text x="950" y="322" text-anchor="middle" class="sub" font-style="italic">+ heatmap/bubble/waterfall per technique (Tab 1)</text>
 
   <!-- Cross-technique ranking -->
   <path class="edge" d="M1080,280 L1138,280"/>
@@ -95,7 +95,7 @@
   <text x="1255" y="252" text-anchor="middle" class="title">Cross-Technique Ranking</text>
   <text x="1255" y="271" text-anchor="middle" class="sub">normalize Root Cause Score</text>
   <text x="1255" y="286" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
-  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes</text>
+  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes + 10×5 table (Tab 2)</text>
 
   <!-- Executive insights -->
   <path class="edge" d="M1370,280 L1418,280"/>
