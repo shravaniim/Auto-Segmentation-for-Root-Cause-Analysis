@@ -88,4 +88,4 @@ AZURE_OPENAI_API_VERSION=...
 
 **Working:** all 5 techniques, candidate filtering/dedup, full metric suite, SIS/DIS/Root Cause Score, per-segment SHAP, cross-technique top-10 ranking, executive summary, Streamlit UI with heatmap/bubble/waterfall charts.
 
-**Not yet wired to real data:** multi-period ("recurring worst segment") tracking — the mechanism is built and tested (`core/multi_period_analysis.py`), but only one monitoring snapshot exists today, so there's nothing to track recurrence across yet.
+

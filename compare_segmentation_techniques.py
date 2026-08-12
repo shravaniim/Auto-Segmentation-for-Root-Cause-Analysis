@@ -219,14 +219,24 @@ def benchmark_all_techniques():
     print()
 
     print("--> [1/5] Running Drift Localization Tree (DLT)...")
+    # max_depth=4 (vs. the original 3) gives the tree more leaves to work
+    # with -- DLT is a single tree, so its candidate count is structurally
+    # capped by leaf count; this is the practical ceiling before leaves
+    # start failing the significance/support gates.
     res_dlt = run_drift_localization(
         dev_df,
         mon_df,
-        cfg=DLTConfig(schema=schema_cfg, max_depth=3, min_samples_leaf=0.05),
+        cfg=DLTConfig(schema=schema_cfg, max_depth=4, min_samples_leaf=0.04),
     )
 
     print("--> [2/5] Running K-Means Clustering...")
-    res_kmeans = run_kmeans_segmentation(dev_df, mon_df, cfg=KMeansConfig(schema=schema_cfg))
+    # k_range floor raised and min_cluster_pct relaxed slightly so more
+    # clusters both form and survive the size filter, closer to a
+    # comparable candidate count to the other techniques.
+    res_kmeans = run_kmeans_segmentation(
+        dev_df, mon_df,
+        cfg=KMeansConfig(schema=schema_cfg, k_range=range(8, 13), min_cluster_pct=0.02),
+    )
 
     print("--> [3/5] Running AutoSlicer (Sub-group Discovery)...")
     slicer_cfg = SlicerConfig(

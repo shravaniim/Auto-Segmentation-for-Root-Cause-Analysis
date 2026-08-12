@@ -415,30 +415,29 @@ with tab2:
         # ====================================================
 
         st.subheader("📋 Top 10 Segments per Technique")
+        st.caption(
+            "Full metric set, same columns as Cross-Technique Insights (Tab 3). "
+            "A technique shows fewer than 10 rows only if it did not discover "
+            "that many candidates passing the significance/support gates -- "
+            "counts are not padded to 10."
+        )
 
         if not combined_segments_df.empty:
             _rank_col = (
                 "Severity_Score" if "Severity_Score" in combined_segments_df.columns
                 else "Business_Impact_Score"
             )
-            top10_per_technique = pd.concat(
-                [
-                    g.nlargest(10, _rank_col).assign(Rank_Within_Technique=range(1, len(g.nlargest(10, _rank_col)) + 1))
-                    for _, g in combined_segments_df.groupby("Technique")
-                ],
-                ignore_index=True,
-            )
-            display_cols = [
-                c for c in [
-                    "Technique", "Rank_Within_Technique", "Segment_Definition",
-                    "PSI", "Delta_Gini", "Delta_KS", "Delta_BR",
-                    "Root_Cause_Score", "Severity_Score", "SIS_Raw", "DIS_Raw",
-                ] if c in top10_per_technique.columns
-            ]
-            st.dataframe(top10_per_technique[display_cols], use_container_width=True)
+            groups = []
+            for _, g in combined_segments_df.groupby("Technique"):
+                top = g.nlargest(10, _rank_col).reset_index(drop=True)
+                top.insert(1, "Rank_Within_Technique", top.index + 1)
+                groups.append(top)
+            top10_per_technique = pd.concat(groups, ignore_index=True)
+
+            st.dataframe(top10_per_technique, use_container_width=True)
             st.download_button(
                 label="📥 Download Top 10 x 5 CSV",
-                data=top10_per_technique[display_cols].to_csv(index=False),
+                data=top10_per_technique.to_csv(index=False),
                 file_name="top10_per_technique.csv",
                 mime="text/csv",
                 key="download_top10_per_technique",

@@ -1,17 +1,17 @@
 Section,Key,Value
 PORTFOLIO HEALTH,Overall Status,CRITICAL - Significant model degradation and/or population drift detected.
-PORTFOLIO HEALTH,Most Sensitive Technique for Drift Detection,Feature Binning (Score: 100.0/100)
-PORTFOLIO HEALTH,Max Gini Drop Detected,0.3299
+PORTFOLIO HEALTH,Most Sensitive Technique for Drift Detection,Feature Binning (Score: 83.0/100)
+PORTFOLIO HEALTH,Max Gini Drop Detected,0.4779
 PORTFOLIO HEALTH,Max PSI Detected,0.2410
 PORTFOLIO HEALTH,Max |Calibration Drift| Detected,2.3553
 PORTFOLIO HEALTH,Total Segments Analyzed,10
-TOP ROOT-CAUSE SEGMENTS,Rank 1: K-Means Clustering,Cluster_6: age < 47.5 AND occupation != Business AND income < 7.52e+04 AND occupation = Salaried
-TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,K-Means Clustering
-TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.2854
-TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.0029
-TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.2300
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,region
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.9251
+TOP ROOT-CAUSE SEGMENTS,Rank 1: Drift Localization Tree,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5
+TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,"Drift Localization Tree, Gradient Boosting"
+TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.1327
+TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.1282
+TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.7532
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,age
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.9239
 TOP ROOT-CAUSE SEGMENTS,Rank 2: Feature Binning,region = West
 TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,"AutoSlicer, Feature Binning, K-Means Clustering"
 TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.0193
@@ -19,30 +19,30 @@ TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.3081
 TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-2.3553
 TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,region
 TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.8035
-TOP ROOT-CAUSE SEGMENTS,Rank 3: Gradient Boosting,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5
-TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,"Drift Localization Tree, Gradient Boosting"
-TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.1327
-TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.1282
-TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.7532
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,age
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.7838
-TOP ROOT-CAUSE SEGMENTS,Rank 4: Gradient Boosting,income < 5.001e+04 AND age >= 28.5
-TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,"Drift Localization Tree, Gradient Boosting"
+TOP ROOT-CAUSE SEGMENTS,Rank 3: Gradient Boosting,income < 5.001e+04 AND age >= 28.5
+TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,Gradient Boosting
 TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.2861
 TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.0394
 TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.4025
 TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,age
 TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.7303
-TOP ROOT-CAUSE SEGMENTS,Rank 5: Gradient Boosting,occupation != Salaried AND income >= 3.408e+04 AND income < 5.001e+04
-TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,Gradient Boosting
-TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.0460
-TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.1878
-TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.7538
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,age
-TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.6470
+TOP ROOT-CAUSE SEGMENTS,Rank 4: Drift Localization Tree,income < 5.001e+04 AND age >= 28.5 AND age < 35.5
+TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,Drift Localization Tree
+TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.4779
+TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.0304
+TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),-0.4333
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,income
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.6639
+TOP ROOT-CAUSE SEGMENTS,Rank 5: K-Means Clustering,Cluster_5: region != North AND region != South AND occupation = Business AND age >= 48.5
+TOP ROOT-CAUSE SEGMENTS,  -> Discovered By,K-Means Clustering
+TOP ROOT-CAUSE SEGMENTS,  -> Gini Drop,0.1083
+TOP ROOT-CAUSE SEGMENTS,  -> Exposure Drift,0.0862
+TOP ROOT-CAUSE SEGMENTS,  -> Calibration Drift (signed),0.0735
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Feature,income
+TOP ROOT-CAUSE SEGMENTS,  -> Root Cause Score,0.6476
 ROOT CAUSE ANALYSIS,Top Drifting Features (across all segments),"region, age, income"
-RECOMMENDATIONS,1. Immediate Action,Investigate 'Cluster_6: age < 47.5 AND occupation != Business AND income < 7.52e+04 AND occupation = Salaried' - highest root-cause score
-RECOMMENDATIONS,2. Root Cause Investigation,Focus on feature 'region' - highest drift within worst segment
+RECOMMENDATIONS,1. Immediate Action,Investigate 'income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5' - highest root-cause score
+RECOMMENDATIONS,2. Root Cause Investigation,Focus on feature 'age' - highest drift within worst segment
 RECOMMENDATIONS,3. Recalibration,Consider model recalibration for segments with calibration drift > 0.05
 RECOMMENDATIONS,4. Monitoring Thresholds,Set up automated alerts for PSI > 0.10 and Gini Drop > 0.10
 RECOMMENDATIONS,5. Most Sensitive Technique,Use Feature Binning for ongoing monitoring - highest drift-detection sensitivity

@@ -64,7 +64,7 @@ from utils.schema_detection import (
 )
 
 from utils.preprocessing import (
-    format_condition,
+    canonicalize_path_conditions,
 )
 
 from metrics.drift_metrics import (
@@ -1010,39 +1010,25 @@ def distill_cluster_rules(
         # Extract path
         # --------------------------------------------------------------
 
-        conditions = (
+        raw_conditions = (
             path_conditions(
                 best_leaf
             )
             or []
         )
 
-        rendered = []
-
-        for (
-            feature_name,
-            direction,
-            threshold,
-        ) in conditions:
-
-            try:
-
-                rendered.append(
-                    format_condition(
-                        feature_name,
-                        threshold,
-                        direction,
-                        onehot_cols,
-                    )
-                )
-
-            except Exception:
-
-                rendered.append(
-                    f"{feature_name} "
-                    f"{direction} "
-                    f"{threshold:.4g}"
-                )
+        # canonicalize_path_conditions expects (feature, threshold,
+        # direction); path_conditions produces (feature, direction,
+        # threshold) -- reorder, then let the shared utility collapse
+        # redundant same-feature bounds and redundant categorical
+        # negatives (same logic used by Drift Tree / Gradient Boosting).
+        rendered = canonicalize_path_conditions(
+            [
+                (feature_name, threshold, direction)
+                for feature_name, direction, threshold in raw_conditions
+            ],
+            onehot_cols,
+        ) or []
 
         rule_text = (
             " AND ".join(

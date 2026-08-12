@@ -77,13 +77,17 @@ def canonicalize_path_conditions(
 
     Returns ``None`` if the path contains contradictory bounds."""
     numeric_bounds: dict[str, dict] = {}
-    categorical_parts: list[str] = []
+    # original categorical column -> {"positive": value or None, "negatives": {values}}
+    categorical_by_col: dict[str, dict] = {}
 
     for feature_name, threshold, direction in rule_list:
         if feature_name in onehot_map:
-            categorical_parts.append(
-                format_condition(feature_name, threshold, direction, onehot_map)
-            )
+            col, val = onehot_map[feature_name]
+            entry = categorical_by_col.setdefault(col, {"positive": None, "negatives": set()})
+            if direction == "<=":
+                entry["negatives"].add(val)
+            else:
+                entry["positive"] = val
             continue
         bounds = numeric_bounds.setdefault(feature_name, {})
         if direction == "<=":
@@ -98,6 +102,18 @@ def canonicalize_path_conditions(
                 if "lower" not in bounds
                 else max(bounds["lower"], threshold)
             )
+
+    # A positive "= value" assignment for a categorical column already
+    # implies every "!= other_value" for that same column -- keep only the
+    # positive assignment when one is present, instead of showing both
+    # (e.g. "region != South AND region = North" -> just "region = North").
+    categorical_parts: list[str] = []
+    for col, entry in categorical_by_col.items():
+        if entry["positive"] is not None:
+            categorical_parts.append(f"{col} = {entry['positive']}")
+        else:
+            for val in sorted(entry["negatives"]):
+                categorical_parts.append(f"{col} != {val}")
 
     numeric_parts: list[str] = []
     for feature_name, bounds in numeric_bounds.items():
