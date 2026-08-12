@@ -24,6 +24,7 @@ from compare_segmentation_techniques import (
 )
 
 from llm.insight_generator import generate_insight
+from utils.charts import segment_metric_heatmap, segment_bubble_chart, sis_waterfall_chart
 
 
 # ============================================================
@@ -206,10 +207,11 @@ st.title("Auto-Segmentation Framework")
 # Tabs
 # ============================================================
 
-tab1, tab2 = st.tabs(
+tab1, tab2, tab3 = st.tabs(
     [
         "Segmentation Analysis",
-        "Technique Comparison"
+        "Technique Comparison",
+        "Cross-Technique Insights",
     ]
 )
 
@@ -344,9 +346,12 @@ with tab2:
             "Running all segmentation techniques..."
         ):
 
-            summary_df, combined_segments_df = (
+            summary_df, combined_segments_df, cross_top10_df, cross_exec_summary_df = (
                 benchmark_all_techniques()
             )
+
+        st.session_state["cross_top10_df"] = cross_top10_df
+        st.session_state["cross_exec_summary_df"] = cross_exec_summary_df
 
         st.success(
             "Benchmark Completed Successfully"
@@ -511,3 +516,49 @@ with tab2:
             st.warning(
                 f"Could not generate benchmark summary: {e}"
             )
+
+
+# ============================================================
+# TAB 3 — Cross-Technique Insights (task-flow step 4)
+# ============================================================
+
+with tab3:
+
+    st.header("🔎 Cross-Technique Insights")
+    st.caption(
+        "Top-10 worst segments across all techniques, ranked by "
+        "normalized Root_Cause_Score (task-flow step 4). Run the "
+        "benchmark in 'Technique Comparison' first."
+    )
+
+    cross_top10_df = st.session_state.get("cross_top10_df", pd.DataFrame())
+    cross_exec_summary_df = st.session_state.get("cross_exec_summary_df", pd.DataFrame())
+
+    if cross_top10_df.empty:
+        st.info("No data yet — run the benchmark in the 'Technique Comparison' tab first.")
+    else:
+        st.subheader("📋 Top 10 Worst Segments (All Techniques)")
+        st.dataframe(cross_top10_df, use_container_width=True)
+
+        if not cross_exec_summary_df.empty:
+            st.subheader("📝 Cross-Technique Executive Summary")
+            for section in cross_exec_summary_df["Section"].unique():
+                st.markdown(f"**{section}**")
+                sect_rows = cross_exec_summary_df[cross_exec_summary_df["Section"] == section]
+                for _, r in sect_rows.iterrows():
+                    st.write(f"{r['Key']}: {r['Value']}")
+
+        st.subheader("🌡️ Segment x Metric Heatmap")
+        fig = segment_metric_heatmap(cross_top10_df)
+        if fig is not None:
+            st.pyplot(fig)
+
+        st.subheader("🫧 Bubble Chart — Population vs Gini Drop (size = exposure)")
+        fig = segment_bubble_chart(cross_top10_df)
+        if fig is not None:
+            st.pyplot(fig)
+
+        st.subheader("💧 SIS Waterfall — #1 Worst Segment")
+        fig = sis_waterfall_chart(cross_top10_df.iloc[0])
+        if fig is not None:
+            st.pyplot(fig)

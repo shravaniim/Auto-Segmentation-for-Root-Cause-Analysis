@@ -12,9 +12,10 @@ from gradient_boosting_segmentation import run_gradient_boosting_segmentation, G
 
 from core.segment_insights import (
     compute_root_cause_scores,
-    
+
     generate_executive_summary,
 )
+from core.cross_technique_analysis import build_cross_technique_top10
 from models.config import SchemaConfig
 from utils.logging_config import get_logger
 
@@ -377,8 +378,16 @@ def benchmark_all_techniques():
     else:
         combined_segments_df = pd.DataFrame()
 
-    # Executive summary (no SHAP analysis — using dev_NEW/mon_2026_01 only)
+    # Executive summary
     exec_summary_df = generate_executive_summary(summary_df, combined_segments_df, None)
+
+    # Step 4: cross-technique top-10 (normalized Root_Cause_Score) + its
+    # own executive summary.
+    cross_top10_df = build_cross_technique_top10(combined_segments_df)
+    cross_exec_summary_df = (
+        generate_executive_summary(summary_df, cross_top10_df, None)
+        if not cross_top10_df.empty else pd.DataFrame()
+    )
 
     def safe_to_csv(df_to_save, filepath):
         try:
@@ -421,6 +430,10 @@ def benchmark_all_techniques():
 
     if not exec_summary_df.empty:
         safe_to_csv(exec_summary_df, OUTPUT_DIR / 'executive_summary.csv')
+    if not cross_top10_df.empty:
+        safe_to_csv(cross_top10_df, OUTPUT_DIR / 'cross_technique_top10.csv')
+    if not cross_exec_summary_df.empty:
+        safe_to_csv(cross_exec_summary_df, OUTPUT_DIR / 'cross_technique_executive_summary.csv')
 
     ranked = summary_df.sort_values('Severity_Rank')
     top_segments_df = ranked[[
@@ -488,7 +501,7 @@ def benchmark_all_techniques():
     print(f"  Notes: Scores normalized across all 5 techniques. 100 = best drift detection. 0 = worst.")
     print("=" * 115)
 
-    return summary_df, combined_segments_df
+    return summary_df, combined_segments_df, cross_top10_df, cross_exec_summary_df
 
 
 if __name__ == '__main__':

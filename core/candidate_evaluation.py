@@ -63,6 +63,7 @@ from metrics.drift_metrics import (
     calculate_psi,
     compute_psi_for_feature,
     build_decile_bins,
+    detect_shap_shift,
 )
 
 from metrics.significance import (
@@ -1094,18 +1095,17 @@ def evaluate_segment(
     )
 
     # -----------------------------------------------------------------------
-    # Backward-compatible output
+    # SHAP-based behavioural drift within this segment
     # -----------------------------------------------------------------------
     #
-    # Existing downstream code may expect:
-    #
-    #   top_shap_shift_feature
-    #   top_shap_shift_psi
-    #
-    # These fields are retained but intentionally set to None.
-    #
-    # Feature-level PSI is NOT SHAP analysis.
+    # Distinct from the feature-PSI root cause above: this measures how
+    # much the model's SHAP attributions shifted for rows inside this
+    # specific segment (dev_sub vs mon_sub), not the whole population.
     # -----------------------------------------------------------------------
+
+    shap_shift = detect_shap_shift(
+        dev_sub, mon_sub, shap_cols or []
+    )
 
     return {
 
@@ -1208,13 +1208,10 @@ def evaluate_segment(
         ),
 
         # -------------------------------------------------------------------
-        # Backward compatibility
-        # -------------------------------------------------------------------
-        #
-        # These are deliberately NOT populated with feature PSI.
-        # Feature-level PSI is not SHAP analysis.
+        # SHAP-based behavioural drift, computed within this segment only
+        # (dev_sub/mon_sub), distinct from the feature-PSI root cause above.
         # -------------------------------------------------------------------
 
-        "top_shap_shift_feature": None,
-        "top_shap_shift_psi": 0.0,
+        "top_shap_shift_feature": shap_shift["top_shift_feature"],
+        "top_shap_shift_psi": shap_shift["top_shift_psi"],
     }
