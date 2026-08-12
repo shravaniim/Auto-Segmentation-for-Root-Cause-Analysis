@@ -122,9 +122,14 @@ def generate_executive_summary(
     best_tech = ranked.iloc[0]['Technique']
     best_score = ranked.iloc[0]['Overall_Score_100']
 
-    # Rank worst segments: Severity_Score first, then by absolute Gini Drop
+    # Rank worst segments. Severity_Score is only comparable within a single
+    # technique's own pool (each technique scales it differently). When
+    # segments_df is a cross-technique pool (has Normalized_Root_Cause_Score,
+    # set by core/cross_technique_analysis.py), that column is genuinely
+    # comparable across techniques and must be preferred.
     seg_rank_col = next(
-        (c for c in ['Severity_Score', 'Business_Impact_Score', 'Root_Cause_Score'] if c in segments_df.columns),
+        (c for c in ['Normalized_Root_Cause_Score', 'Severity_Score', 'Business_Impact_Score', 'Root_Cause_Score']
+         if c in segments_df.columns),
         None
     )
     worst_segs = []
