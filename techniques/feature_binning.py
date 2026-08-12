@@ -74,6 +74,8 @@ from metrics.significance import (
     min_max_normalize,
 )
 
+from core.candidate_deduplication import deduplicate_by_jaccard
+
 
 logger = get_logger(__name__)
 
@@ -2588,6 +2590,15 @@ class FeatureBinningTechnique(
 
             if result is not None:
 
+                # Distinct key name: point_rows already flows through an
+                # existing "_mon_mask"/"_dev_mask" pair used internally by
+                # the bootstrap significance step, which strips them
+                # before scoring. This one survives to the dedup step
+                # below and is popped there.
+                result["_dedup_mon_mask"] = bin_mask(
+                    mon_df, bin_def
+                )
+
                 point_rows.append(
                     result
                 )
@@ -2919,6 +2930,20 @@ class FeatureBinningTechnique(
         ).round(
             6
         )
+
+        # ==================================================================
+        # REMOVE OVERLAPPING/DUPLICATE SEGMENTS (same mechanism as
+        # AutoSlicer/Drift Tree/Gradient Boosting: Jaccard overlap on the
+        # monitoring-side row mask).
+        # ==================================================================
+
+        dedup_records = deduplicate_by_jaccard(
+            scored.to_dict("records"),
+            mask_key="_dedup_mon_mask",
+            overlap_threshold=cfg.overlap_jaccard_threshold,
+            pool_size=len(scored),
+        )
+        scored = pd.DataFrame(dedup_records)
 
         # ==================================================================
         # TOP N

@@ -190,10 +190,12 @@ def generate_executive_summary(
 
     summary_rows = []
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Overall Status', 'Value': health})
-    summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Best Technique (Drift Detection)', 'Value': f"{best_tech} (Score: {best_score}/100)"})
+    summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Most Sensitive Technique for Drift Detection', 'Value': f"{best_tech} (Score: {best_score}/100)"})
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Max Gini Drop Detected', 'Value': f"{max_gini_drop:.4f}"})
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Max PSI Detected', 'Value': f"{max_psi:.4f}"})
-    summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Max Calibration Drift', 'Value': f"{max_cal:.4f}"})
+    # Magnitude (unsigned) — per-segment Calibration Drift below is signed
+    # (monitoring - development A/E ratio); this portfolio figure is |x|.max().
+    summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Max |Calibration Drift| Detected', 'Value': f"{max_cal:.4f}"})
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Total Segments Analyzed', 'Value': str(len(segments_df))})
 
     for i, seg in enumerate(worst_segs, 1):
@@ -214,7 +216,7 @@ def generate_executive_summary(
         })
         summary_rows.append({
             'Section': 'TOP WORST SEGMENTS',
-            'Key': f"  -> Calibration Drift",
+            'Key': f"  -> Calibration Drift (signed)",
             'Value': f"{seg['Calibration_Drift']:.4f}" if not pd.isna(seg.get('Calibration_Drift', np.nan)) else 'N/A',
         })
         summary_rows.append({
@@ -261,8 +263,8 @@ def generate_executive_summary(
                           'Value': 'Consider model recalibration for segments with calibration drift > 0.05'})
     summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '4. Monitoring Thresholds',
                           'Value': 'Set up automated alerts for PSI > 0.10 and Gini Drop > 0.10'})
-    summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '5. Best Technique',
-                          'Value': f"Use {best_tech} for ongoing monitoring - highest sensitivity"})
+    summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '5. Most Sensitive Technique',
+                          'Value': f"Use {best_tech} for ongoing monitoring - highest drift-detection sensitivity"})
 
     return pd.DataFrame(summary_rows)
 

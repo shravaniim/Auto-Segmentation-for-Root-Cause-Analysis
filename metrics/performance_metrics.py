@@ -65,8 +65,9 @@ def calculate_calibration_drift(
     mon_actual: float, mon_expected: float
 ) -> float:
     """
-    Calculates the absolute shift in the Actual/Expected (A/E) ratio 
-    between development and monitoring datasets.
+    Calculates the signed shift in the Actual/Expected (A/E) ratio
+    between development and monitoring datasets (monitoring - development).
+    Positive = A/E ratio rose in monitoring; negative = it fell.
     """
     dev_ae = dev_actual / max(dev_expected, 1e-6)
     mon_ae = mon_actual / max(mon_expected, 1e-6)

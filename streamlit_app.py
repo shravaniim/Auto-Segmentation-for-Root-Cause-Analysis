@@ -447,7 +447,7 @@ with tab2:
         winner = ranking_df.iloc[0]
 
         st.subheader(
-            "🥇 Recommended Technique"
+            "🥇 Most Sensitive Technique (Drift Detection)"
         )
 
         st.write(

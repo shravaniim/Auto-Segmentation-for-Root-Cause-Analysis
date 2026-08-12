@@ -162,3 +162,23 @@ def test_executive_summary_gini_drop_is_positive_when_worse():
     row = exec_df[(exec_df["Section"] == "TOP WORST SEGMENTS") & (exec_df["Key"] == "  -> Gini Drop")]
 
     assert row.iloc[0]["Value"] == "0.2600"
+
+
+# ---------------------------------------------------------------------------
+# Feature Binning cross-technique mapping (Calibration_Drift, Severity_Score)
+# ---------------------------------------------------------------------------
+
+def test_feature_binning_calibration_and_severity_are_mapped_to_shared_columns():
+    df = pd.DataFrame({
+        "Delta_Calibration_Intercept": [-2.355],
+        "Overall_Score": [0.223],
+        "Segment_Definition": ["region = West"],
+    })
+    out = standardize_columns(df, "Feature Binning")
+    assert out["Calibration_Drift"].iloc[0] == -2.355
+    assert out["Severity_Score"].iloc[0] == 0.223
+
+
+def test_feature_binning_config_has_dedup_threshold():
+    from models.config import FeatureBinningConfig
+    assert FeatureBinningConfig().overlap_jaccard_threshold == 0.70

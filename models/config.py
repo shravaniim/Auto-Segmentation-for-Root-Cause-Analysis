@@ -435,6 +435,10 @@ class FeatureBinningConfig:
     # other four techniques.
     max_segment_pct: float = 0.35
 
+    # Jaccard-overlap threshold for candidate_deduplication.deduplicate_by_jaccard,
+    # matching the default used by AutoSlicer/Gradient Boosting.
+    overlap_jaccard_threshold: float = 0.70
+
     # ------------------------------------------------------------------------
     # Output
     # ------------------------------------------------------------------------

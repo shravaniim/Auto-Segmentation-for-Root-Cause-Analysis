@@ -171,6 +171,7 @@ def standardize_columns(df, tech_name):
         'Calibration_Drift': 'Calibration_Drift', 'calibration_drift': 'Calibration_Drift',
         # Feature Binning calibration columns
         'delta_intercept': 'Calibration_Drift',  # A/E intercept shift = calibration drift proxy
+        'Delta_Calibration_Intercept': 'Calibration_Drift',  # Feature Binning renames to this internally before this map runs
         # Root Cause (feature-level PSI)
         'Root_Cause_Feature': 'Root_Cause_Feature', 'top_drift_feature': 'Root_Cause_Feature',
         'Root_Cause_PSI': 'Root_Cause_PSI', 'top_drift_psi': 'Root_Cause_PSI',
@@ -187,6 +188,7 @@ def standardize_columns(df, tech_name):
         'Severity_Score': 'Severity_Score',
         # Feature Binning final_score = severity proxy
         'final_score': 'Severity_Score',
+        'Overall_Score': 'Severity_Score',  # Feature Binning renames to this internally before this map runs
         'deterioration_score': 'Deterioration_Score',
         'Drift_Explanation': 'Drift_Explanation',
         'Rank': 'Rank', 'rank': 'Rank',
@@ -284,7 +286,7 @@ def benchmark_all_techniques():
             )
             top_ead = _first_nonnull_value(top_segment, ['Mon_EAD', 'Weight_Mon', 'ead_mon', 'weight_mon'])
 
-            calibration_drift = _first_nonnull_value(top_segment, ['Calibration_Drift', 'calibration_drift', 'delta_intercept'])
+            calibration_drift = _first_nonnull_value(top_segment, ['Calibration_Drift', 'calibration_drift', 'delta_intercept', 'Delta_Calibration_Intercept'])
             exposure_drift = _first_nonnull_value(top_segment, ['Exposure_Drift', 'exposure_drift'])
 
             # Root Cause from feature-level PSI within segment
@@ -495,7 +497,7 @@ def benchmark_all_techniques():
     print("\n" + "=" * 115)
     print("RECOMMENDATION")
     print("=" * 115)
-    print(f"  Best Technique  : {winner['Technique']}  (Overall Score: {winner['Overall_Score_100']}/100, Rank #1)")
+    print(f"  Most Sensitive Technique (Drift Detection): {winner['Technique']}  (Overall Score: {winner['Overall_Score_100']}/100, Rank #1)")
     print(f"  Key Strengths   : Max PSI={winner['Max_PSI']}, Max Gini Drop={winner['Max_Gini_Drop']}, "
           f"KS Drop={winner['Max_KS_Drop']}, Deterministic={winner['Deterministic']}")
     print(f"  Notes: Scores normalized across all 5 techniques. 100 = best drift detection. 0 = worst.")
