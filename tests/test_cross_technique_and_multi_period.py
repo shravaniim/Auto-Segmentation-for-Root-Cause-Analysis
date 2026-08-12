@@ -44,3 +44,33 @@ def test_recurring_worst_segments_ranks_by_frequency():
     assert top["Segment_Definition"] == "region=West"
     assert top["Periods_Appeared"] == 2
     assert top["Recurrence_Pct"] == 100.0
+
+
+def test_cross_technique_dedup_merges_same_population():
+    # Two techniques independently discover the identical population
+    # (same Dev_Count/Mon_Count/PSI/Delta_BR/Delta_Gini).
+    dup = pd.DataFrame({
+        "Technique": ["Gradient Boosting", "Drift Localization Tree"],
+        "Segment_Definition": ["income < 3.798e+04 AND age < 28.5", "income < 3.798e+04 AND age < 28.5"],
+        "Severity_Score": [7.5898, 13.0],
+        "Root_Cause_Score": [0.019847, 0.019847],
+        "Dev_Count": [163, 163],
+        "Mon_Count": [666, 666],
+        "PSI": [0.1416, 0.1416],
+        "Delta_BR": [-0.5267, -0.5267],
+        "Delta_Gini": [0.0809, 0.0809],
+    })
+    unique = _segments("AutoSlicer", 10, severity_start=6.0)
+    unique["Dev_Count"] = range(100, 110)
+    unique["Mon_Count"] = range(200, 210)
+    unique["PSI"] = [0.01 * i for i in range(10)]
+    unique["Delta_BR"] = [0.02 * i for i in range(10)]
+    unique["Delta_Gini"] = [0.03 * i for i in range(10)]
+
+    combined = pd.concat([dup, unique], ignore_index=True)
+    top10 = build_cross_technique_top10(combined, per_technique_n=10, top_n=20)
+
+    merged = top10[top10["Segment_Definition"] == "income < 3.798e+04 AND age < 28.5"]
+    assert len(merged) == 1
+    assert set(merged.iloc[0]["Discovered_By"].split(", ")) == {"Gradient Boosting", "Drift Localization Tree"}
+    assert merged.iloc[0]["Severity_Score"] == 13.0  # kept the higher-ranked instance

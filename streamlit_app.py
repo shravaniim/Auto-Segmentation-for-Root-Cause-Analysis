@@ -526,9 +526,10 @@ with tab3:
 
     st.header("🔎 Cross-Technique Insights")
     st.caption(
-        "Top-10 worst segments across all techniques, ranked by "
-        "normalized Root_Cause_Score (task-flow step 4). Run the "
-        "benchmark in 'Technique Comparison' first."
+        "Top-10 root-cause segments across all techniques, ranked by "
+        "normalized Root_Cause_Score — a blend of drift, performance "
+        "decay and population impact, not performance decay alone "
+        "(task-flow step 4). Run the benchmark in 'Technique Comparison' first."
     )
 
     cross_top10_df = st.session_state.get("cross_top10_df", pd.DataFrame())
@@ -537,7 +538,7 @@ with tab3:
     if cross_top10_df.empty:
         st.info("No data yet — run the benchmark in the 'Technique Comparison' tab first.")
     else:
-        st.subheader("📋 Top 10 Worst Segments (All Techniques)")
+        st.subheader("📋 Top 10 Root-Cause Segments (All Techniques)")
         st.dataframe(cross_top10_df, use_container_width=True)
 
         if not cross_exec_summary_df.empty:

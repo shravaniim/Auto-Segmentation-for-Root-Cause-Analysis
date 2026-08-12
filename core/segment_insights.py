@@ -159,6 +159,7 @@ def generate_executive_summary(
             worst_segs.append({
                 'Segment': seg_def,
                 'Technique': r.get('Technique', 'Unknown'),
+                'Discovered_By': r.get('Discovered_By', r.get('Technique', 'Unknown')),
                 'Severity_Score': r.get(seg_rank_col, 0.0),
                 # Delta_Gini = mon - dev (negative = deterioration).
                 # 'Gini_Drop' must be positive-when-worse, matching its label.
@@ -203,34 +204,48 @@ def generate_executive_summary(
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Max |Calibration Drift| Detected', 'Value': f"{max_cal:.4f}"})
     summary_rows.append({'Section': 'PORTFOLIO HEALTH', 'Key': 'Total Segments Analyzed', 'Value': str(len(segments_df))})
 
+    # Root_Cause_Score blends drift + performance decay + population impact,
+    # so Rank 1 here is the most impactful root cause, not necessarily the
+    # single largest performance drop. Label the section accordingly when
+    # this is the cross-technique (Normalized_Root_Cause_Score) ranking.
+    is_cross_technique = seg_rank_col == 'Normalized_Root_Cause_Score'
+    section_name = 'TOP ROOT-CAUSE SEGMENTS' if is_cross_technique else 'TOP WORST SEGMENTS'
+    rank_basis = 'highest root-cause score' if is_cross_technique else 'highest severity score'
+
     for i, seg in enumerate(worst_segs, 1):
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"Rank {i}: {seg['Technique']}",
             'Value': seg['Segment'],
         })
+        if is_cross_technique:
+            summary_rows.append({
+                'Section': section_name,
+                'Key': f"  -> Discovered By",
+                'Value': str(seg['Discovered_By']),
+            })
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"  -> Gini Drop",
             'Value': f"{seg['Gini_Drop']:.4f}" if not pd.isna(seg.get('Gini_Drop', np.nan)) else 'N/A',
         })
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"  -> Exposure Drift",
             'Value': f"{seg['Exposure_Drift']:.4f}" if not pd.isna(seg.get('Exposure_Drift', np.nan)) else 'N/A',
         })
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"  -> Calibration Drift (signed)",
             'Value': f"{seg['Calibration_Drift']:.4f}" if not pd.isna(seg.get('Calibration_Drift', np.nan)) else 'N/A',
         })
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"  -> Root Cause Feature",
             'Value': str(seg['Root_Cause_Feature']),
         })
         summary_rows.append({
-            'Section': 'TOP WORST SEGMENTS',
+            'Section': section_name,
             'Key': f"  -> Root Cause Score",
             'Value': f"{seg['Root_Cause_Score']:.4f}" if not pd.isna(seg.get('Root_Cause_Score', np.nan)) else 'N/A',
         })
@@ -261,7 +276,7 @@ def generate_executive_summary(
     top_seg_def = worst_segs[0]['Segment'] if worst_segs else 'N/A'
     top_rc_feat = worst_segs[0]['Root_Cause_Feature'] if worst_segs else 'N/A'
     summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '1. Immediate Action',
-                          'Value': f"Investigate '{top_seg_def}' - highest severity score"})
+                          'Value': f"Investigate '{top_seg_def}' - {rank_basis}"})
     summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '2. Root Cause Investigation',
                           'Value': f"Focus on feature '{top_rc_feat}' - highest drift within worst segment"})
     summary_rows.append({'Section': 'RECOMMENDATIONS', 'Key': '3. Recalibration',

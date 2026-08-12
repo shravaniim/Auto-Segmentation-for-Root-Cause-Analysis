@@ -115,6 +115,30 @@ def test_point_estimate_metrics_accepts_segment_within_cap():
     assert result["mon_pct"] <= 0.35
 
 
+def test_point_estimate_metrics_populates_exposure_shap_and_feature_drift():
+    dev_df, mon_df = _make_df(200, 1), _make_df(200, 2)
+    for df, seed in ((dev_df, 10), (mon_df, 20)):
+        rng = np.random.default_rng(seed)
+        df["ead"] = rng.uniform(100, 1000, len(df))
+        df["shap_x"] = rng.uniform(-1, 1, len(df))
+    bin_def = {"feature": "x", "type": "numeric", "label": "low", "lower": -np.inf, "upper": 0.2}
+
+    result = point_estimate_metrics(
+        bin_def, dev_df, mon_df, len(dev_df), len(mon_df),
+        "target", "score", "ead", min_bin_pct=0.01, max_segment_pct=0.35,
+        feature_cols=["x"], shap_cols=["shap_x"],
+    )
+
+    assert result is not None
+    assert result["dev_exposure_pct"] > 0
+    # mon - dev convention, matching core/candidate_evaluation.py
+    assert result["exposure_drift"] == result["exposure_pct"] - result["dev_exposure_pct"]
+    assert result["top_shap_shift_feature"] == "shap_x"
+    import json
+    details = json.loads(result["feature_drift_details"])
+    assert any(d["feature"] == "x" for d in details)
+
+
 # ---------------------------------------------------------------------------
 # Parameter-optimization transparency
 # ---------------------------------------------------------------------------

@@ -33,6 +33,7 @@ as segmentation or root-cause features.
 
 from __future__ import annotations
 
+import json
 import time
 from typing import Optional, Union
 
@@ -75,6 +76,7 @@ from metrics.significance import (
 )
 
 from core.candidate_deduplication import deduplicate_by_jaccard
+from core.candidate_evaluation import _compute_feature_drift_within_segment
 
 
 logger = get_logger(__name__)
@@ -1140,6 +1142,8 @@ def point_estimate_metrics(
     weight_col,
     min_bin_pct=0.01,
     max_segment_pct=0.35,
+    feature_cols=None,
+    shap_cols=None,
 ):
     """
     Calculate point-estimate performance, drift and business metrics for
@@ -1340,6 +1344,64 @@ def point_estimate_metrics(
 
         exposure_pct = 0.0
 
+    if (
+        weight_col
+        and weight_col
+        in dev_df.columns
+    ):
+
+        total_ead_dev = float(
+            dev_df[
+                weight_col
+            ].sum()
+        )
+
+    else:
+
+        total_ead_dev = np.nan
+
+    if (
+        not np.isnan(ead_dev)
+        and total_ead_dev > 0
+    ):
+
+        dev_exposure_pct = (
+            ead_dev
+            / total_ead_dev
+        )
+
+    else:
+
+        dev_exposure_pct = 0.0
+
+    # Positive = monitoring exposure share increased (mon - dev), matching
+    # core/candidate_evaluation.py's convention.
+    exposure_drift = (
+        exposure_pct
+        - dev_exposure_pct
+    )
+
+    # ----------------------------------------------------------------------
+    # SHAP shift and full feature-drift details, within this segment only
+    # (dev_sub/mon_sub) -- same contract as the other 4 techniques.
+    # ----------------------------------------------------------------------
+
+    shap_shift = (
+        detect_shap_shift(
+            dev_sub,
+            mon_sub,
+            shap_cols or [],
+        )
+    )
+
+    feature_drift = (
+        _compute_feature_drift_within_segment(
+            dev_sub,
+            mon_sub,
+            feature_cols or [],
+        )
+    )
+
     # ----------------------------------------------------------------------
     # Segment population-share PSI
     # ----------------------------------------------------------------------
@@ -1530,6 +1592,11 @@ def point_estimate_metrics(
         "ead_mon": ead_mon,
 
         "exposure_pct": exposure_pct,
+        "dev_exposure_pct": dev_exposure_pct,
+        "exposure_drift": exposure_drift,
+        "top_shap_shift_feature": shap_shift["top_shift_feature"],
+        "top_shap_shift_psi": shap_shift["top_shift_psi"],
+        "feature_drift_details": json.dumps(feature_drift["feature_drift_details"]),
 
         # Monitoring defaults
         "default_count": int(
@@ -2585,6 +2652,8 @@ class FeatureBinningTechnique(
                     max_segment_pct=(
                         cfg.max_segment_pct
                     ),
+                    feature_cols=feature_cols,
+                    shap_cols=shap_cols,
                 )
             )
 
@@ -3072,6 +3141,18 @@ class FeatureBinningTechnique(
             ),
             "exposure_pct": (
                 "Exposure_Pct"
+            ),
+            "dev_exposure_pct": (
+                "Dev_Exposure_Pct"
+            ),
+            "exposure_drift": (
+                "Exposure_Drift"
+            ),
+            "top_shap_shift_feature": (
+                "Top_SHAP_Feature"
+            ),
+            "top_shap_shift_psi": (
+                "Top_SHAP_PSI"
             ),
             "default_count": (
                 "Mon_Default_Count"
