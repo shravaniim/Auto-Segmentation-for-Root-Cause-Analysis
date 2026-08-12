@@ -95,7 +95,7 @@
   <text x="1255" y="252" text-anchor="middle" class="title">Cross-Technique Ranking</text>
   <text x="1255" y="271" text-anchor="middle" class="sub">normalize Root Cause Score</text>
   <text x="1255" y="286" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
-  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 overall</text>
+  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes</text>
 
   <!-- Executive insights -->
   <path class="edge" d="M1370,280 L1418,280"/>

@@ -79,6 +79,7 @@
   <text x="585" y="364" text-anchor="middle" class="title">Cross-Technique Pool</text>
   <text x="585" y="384" text-anchor="middle" class="sub">≤ 50 candidates</text>
   <text x="585" y="398" text-anchor="middle" class="sub">(10 × 5 techniques)</text>
+  <text x="585" y="413" text-anchor="middle" class="sub" font-style="italic">dedup: merge same population</text>
 
   <path class="edge" d="M690,385 L718,385"/>
 
@@ -90,7 +91,7 @@
   <path class="edge" d="M950,385 L978,385"/>
 
   <rect class="accent" x="980" y="340" width="210" height="90"/>
-  <text x="1085" y="364" text-anchor="middle" class="titleAccent">Overall Top 10</text>
+  <text x="1085" y="364" text-anchor="middle" class="titleAccent">Top 10 Root Causes</text>
   <text x="1085" y="384" text-anchor="middle" class="sub">ranked by</text>
   <text x="1085" y="398" text-anchor="middle" class="sub">Normalized Root Cause Score</text>
 
