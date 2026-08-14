@@ -2974,6 +2974,12 @@ class FeatureBinningTechnique(
             6
         )
 
+        # Intermediate only -- Root_Cause_Score above is the public column;
+        # leaving the raw copy in would duplicate it under a second name.
+        scored = scored.drop(
+            columns=["root_cause_score_raw"]
+        )
+
         # ==================================================================
         # REMOVE OVERLAPPING/DUPLICATE SEGMENTS (same mechanism as
         # AutoSlicer/Drift Tree/Gradient Boosting: Jaccard overlap on the
