@@ -36,6 +36,7 @@ from models.config import SlicerConfig
 from models.result import TechniqueResult
 from techniques.base import BaseSegmentationTechnique
 from utils.logging_config import get_logger
+from utils.preprocessing import format_number
 
 from utils.schema_detection import (
     detect_schema,
@@ -145,21 +146,21 @@ def build_feature_bins(
         if low == -np.inf:
 
             label = (
-                f"{series.name} < {high:.4g}"
+                f"{series.name} < {format_number(high)}"
             )
 
         elif high == np.inf:
 
             label = (
-                f"{series.name} >= {low:.4g}"
+                f"{series.name} >= {format_number(low)}"
             )
 
         else:
 
             label = (
-                f"{low:.4g} <= "
+                f"{format_number(low)} <= "
                 f"{series.name} < "
-                f"{high:.4g}"
+                f"{format_number(high)}"
             )
 
         bins.append(

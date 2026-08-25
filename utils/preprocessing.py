@@ -47,6 +47,18 @@ def build_feature_matrix(
 # Tree-rule formatting and canonicalization
 # ---------------------------------------------------------------------------
 
+def format_number(value: float) -> str:
+    """Format a numeric segment-rule threshold for display: no scientific
+    notation, thousands separators for readability (e.g. 60810.0 -> "60,810",
+    44.5 -> "44.5"), regardless of magnitude."""
+    if not np.isfinite(value):
+        return str(value)
+    rounded = round(float(value), 2)
+    if rounded == int(rounded):
+        return f"{int(rounded):,}"
+    return f"{rounded:,.2f}".rstrip("0").rstrip(".")
+
+
 def format_condition(
     feature_name: str,
     threshold: float,
@@ -57,7 +69,7 @@ def format_condition(
     if feature_name in onehot_map:
         col, val = onehot_map[feature_name]
         return f"{col} != {val}" if direction == "<=" else f"{col} = {val}"
-    val_fmt = f"{threshold:.4g}"
+    val_fmt = format_number(threshold)
     return (
         f"{feature_name} < {val_fmt}"
         if direction == "<="
@@ -121,9 +133,9 @@ def canonicalize_path_conditions(
         if lower is not None and upper is not None and lower >= upper:
             return None  # contradictory
         if lower is not None:
-            numeric_parts.append(f"{feature_name} >= {lower:.4g}")
+            numeric_parts.append(f"{feature_name} >= {format_number(lower)}")
         if upper is not None:
-            numeric_parts.append(f"{feature_name} < {upper:.4g}")
+            numeric_parts.append(f"{feature_name} < {format_number(upper)}")
 
     return categorical_parts + numeric_parts
 

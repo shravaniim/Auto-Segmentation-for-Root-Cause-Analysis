@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -23,11 +24,13 @@ logger = get_logger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
-OUTPUT_DIR = BASE_DIR / "outputs"
+OUTPUT_DIR = Path(os.environ.get("AUTOSEG_OUTPUT_DIR") or (BASE_DIR / "outputs"))
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-DEV_FILE = str(DATA_DIR / "development_data_5000_shap.csv")
-MON_FILE = str(DATA_DIR / "monitoring_data_5000_shap.csv")
+# AUTOSEG_DEV_FILE / AUTOSEG_MON_FILE let an ad-hoc run point at a different
+# dataset (e.g. the 1M-row files) without changing the default demo behavior.
+DEV_FILE = os.environ.get("AUTOSEG_DEV_FILE") or str(DATA_DIR / "development_data_5000_shap.csv")
+MON_FILE = os.environ.get("AUTOSEG_MON_FILE") or str(DATA_DIR / "monitoring_data_5000_shap.csv")
 
 # --------------------------------------------------------------------------
 # Static properties per technique (not data-driven)

@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from pathlib import Path
 
 from models.config import (
     SlicerConfig,
@@ -246,8 +247,8 @@ with tab1:
     schema_cfg = build_feature_schema(dev_df)
 
     st.caption(
-        f"Development: `development_data_5000_shap.csv` ({len(dev_df):,} rows) · "
-        f"Monitoring: `monitoring_data_5000_shap.csv` ({len(mon_df):,} rows). "
+        f"Development: `{Path(DEV_FILE).name}` ({len(dev_df):,} rows) · "
+        f"Monitoring: `{Path(MON_FILE).name}` ({len(mon_df):,} rows). "
         f"Segmentation features: **{', '.join(REQUESTED_FEATURES)}**. "
         "`target`, `score`, `ead`, `shap_*` and `customer_id` are excluded from "
         "segment rule discovery for every technique below — they are only used "
