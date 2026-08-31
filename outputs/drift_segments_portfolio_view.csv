@@ -1,2 +1,0 @@
-Rank,Segment,Population_Pct,Delta_Gini,Delta_KS,Delta_BR,Severity_PopulationXGini,SIS_Raw,Statistically_Significant
-1,debt_to_income >= 13.63 AND utilization_rate < 18.22,0.1346,0.08753428858722967,0.15553931623931622,-0.024689379989069865,0.011782115243841113,0.008204153694591043,True
