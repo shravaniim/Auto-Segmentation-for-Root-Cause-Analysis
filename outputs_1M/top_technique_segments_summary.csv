@@ -1,0 +1,6 @@
+Severity_Rank,Technique,Top_Segment_Definition,Segments_Generated,Top_Segment_Pop_Pct,Top_Segment_Exp_Pct,Max_PSI,Max_Gini_Drop,Max_KS_Drop,Max_BR_Shift_Pct,Exposure_Drift,Calibration_Drift,Root_Cause_Feature,Root_Cause_Score,Business_Impact_Score,Top_Segment_EAD,Execution_Time_Sec,Deterministic,Explainability,Overall_Score_100
+1,Feature Binning,29987.5 < income <= 49999.5,20,30.49,38.67,0.241,0.2698,0.1695,-57.06%,0.261,2.2938,income,1.0,0.3867,"$99,406,114,088",685.7622,Yes,High,80.0
+2,K-Means Clustering,"Cluster_5: occupation = Salaried AND age < 43.5 AND income < 82,247.5",10,18.27,13.58,0.241,0.2642,0.2607,-56.52%,-0.0053,-0.2203,region,0.9547,0.0315,"$34,919,037,066",399.1774,Yes*,Medium,73.6
+3,AutoSlicer,"36 <= age < 46 AND income < 60,810",10,9.14,6.87,0.241,0.2429,0.233,-56.52%,0.0016,-0.2383,region,0.6564,0.0078,"$17,667,731,744",32.4256,Yes,Medium,60.4
+4,Drift Localization Tree,"region != Uttar Pradesh AND income >= 49,999.5 AND income < 65,005.5 AND age < 44.5",10,8.64,6.3,0.0917,0.2632,0.2622,-56.59%,-0.0105,-0.1932,region,0.953,0.0069,"$16,188,220,150",22.7976,Yes,High,45.0
+5,Gradient Boosting,"region != Uttar Pradesh AND income >= 49,999.5 AND income < 65,005.5",9,12.35,8.46,0.1643,0.1891,0.1871,-56.57%,-0.0475,-0.1141,region,0.6383,0.0124,"$21,741,860,460",33.8775,Yes,Medium,20.1

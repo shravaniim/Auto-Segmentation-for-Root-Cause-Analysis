@@ -195,6 +195,13 @@ def standardize_columns(df, tech_name):
         'deterioration_score': 'Deterioration_Score',
         'Drift_Explanation': 'Drift_Explanation',
         'Rank': 'Rank', 'rank': 'Rank',
+        # Feature Binning computes its own significance flag (Benjamini-Hochberg
+        # adjusted p-values across gini/ks/auc/br/ece) under a different name
+        # than the other 4 techniques -- map it to the shared column so
+        # "Statistically_Significant" isn't silently NaN for every Feature
+        # Binning row (it was previously never populated at all for this
+        # technique, even though the underlying significance testing exists).
+        'Significant': 'Statistically_Significant',
     }
 
     # Apply rename only for existing columns
@@ -207,18 +214,36 @@ def standardize_columns(df, tech_name):
     return df_renamed
 
 
-def benchmark_all_techniques():
+def benchmark_all_techniques(dev_df=None, mon_df=None, save_outputs=True, schema_cfg=None):
+    """Run all 5 techniques on the given dev/mon data (or the default
+    DEV_FILE/MON_FILE when not provided) and return
+    (summary_df, combined_segments_df, cross_top10_df, cross_exec_summary_df).
+
+    dev_df/mon_df let a caller (e.g. the trend-analysis loop) supply a
+    different dataset per call without touching the default single-period
+    behavior -- when omitted, this is byte-for-byte identical to before.
+    save_outputs=False skips writing to OUTPUT_DIR, for repeated calls in a
+    loop where only the returned DataFrames matter.
+    schema_cfg lets a caller supply a SchemaConfig for a differently-shaped
+    dataset (e.g. the v2 trend-analysis schema); when omitted, this is
+    build_feature_schema(dev_df) exactly as before -- the hardcoded
+    age/income/region/occupation schema.
+    """
     print("=" * 115)
     print("SAS RISK MANAGEMENT - AUTO SEGMENTATION TECHNIQUES BENCHMARKING & COMPARISON")
     print("=" * 115)
     print("Running 5 Segmentation Algorithms on Development & Monitoring Datasets...\n")
 
     # Load base data (development_data_5000_shap.csv and monitoring_data_5000_shap.csv)
-    dev_df = pd.read_csv(DEV_FILE)
-    mon_df = pd.read_csv(MON_FILE)
-    schema_cfg = build_feature_schema(dev_df)
+    if dev_df is None:
+        dev_df = pd.read_csv(DEV_FILE)
+    if mon_df is None:
+        mon_df = pd.read_csv(MON_FILE)
+    if schema_cfg is None:
+        schema_cfg = build_feature_schema(dev_df)
+    feature_names = (schema_cfg.numeric_cols or []) + (schema_cfg.categorical_cols or [])
     print(f"  Dev data: {len(dev_df)} rows | Mon data: {len(mon_df)} rows")
-    print(f"  Using features for segmentation: {', '.join(REQUESTED_FEATURES)}")
+    print(f"  Using features for segmentation: {', '.join(feature_names)}")
     print()
 
     print("--> [1/5] Running Drift Localization Tree (DLT)...")
@@ -242,14 +267,29 @@ def benchmark_all_techniques():
     )
 
     print("--> [3/5] Running AutoSlicer (Sub-group Discovery)...")
+    # AutoSlicer's beam search expands each retained candidate against every
+    # remaining feature's every atomic condition, at every depth -- so its
+    # cost grows roughly with beam_width x (features remaining) x (predicates
+    # per feature), compounding again at each extra depth level. Measured on
+    # a 1M-row, 13-feature dataset: max_combo_depth=2 combos finished in
+    # 5-10 min each, but the depth=3 x beam_width=15 combination alone ran
+    # over 2 hours before being killed -- a real combinatorial blowup, not
+    # just "somewhat slower." depth=3 is dropped from the grid whenever both
+    # the row count and feature count are large enough to risk that same
+    # blowup; smaller runs (the 5,000-row demo data, or low-feature-count
+    # datasets already verified safe at 1M rows) keep the full grid.
+    feature_count = len(schema_cfg.numeric_cols or []) + len(schema_cfg.categorical_cols or [])
+    if len(dev_df) > 200_000 and feature_count > 6:
+        slicer_param_grid = {"max_combo_depth": [2], "beam_width": [10, 15]}
+        print(f"    (large-scale dataset detected: {len(dev_df)} rows, {feature_count} features -- "
+              f"capping AutoSlicer's parameter search at max_combo_depth=2 to avoid a combinatorial blowup)")
+    else:
+        slicer_param_grid = {"max_combo_depth": [2, 3], "beam_width": [10, 15]}
     slicer_cfg = SlicerConfig(
         schema=schema_cfg,
         max_combo_depth=2,
         beam_width=10,
-        param_grid={
-            "max_combo_depth": [2, 3],
-            "beam_width": [10, 15]
-        }
+        param_grid=slicer_param_grid,
     )
     res_slicer = run_autoslicer_segmentation(dev_df, mon_df, cfg=slicer_cfg)
 
@@ -257,10 +297,17 @@ def benchmark_all_techniques():
     res_binning = run_feature_binning_segmentation(dev_df, mon_df, cfg=FeatureBinningConfig(schema=schema_cfg))
 
     print("--> [5/5] Running Gradient Boosting (GBDT)...")
+    # n_estimators bumped 5 -> 50 (undocumented since the original commit
+    # that added this line): with only 5 trees the model is badly
+    # under-trained -- empirically, its top segment's max Gini Drop was
+    # only 0.29 at n_estimators=5 vs. 0.82 at 50 on this same dataset, i.e.
+    # it was missing real degradation nearly 3x worse than it reported.
+    # Cost is ~8s extra at 5,000 rows; not re-tuned for the 1M-row stress
+    # test done earlier this session.
     res_gbdt = run_gradient_boosting_segmentation(
         dev_df,
         mon_df,
-        cfg=GBConfig(schema=schema_cfg, n_estimators=5, max_depth=3),
+        cfg=GBConfig(schema=schema_cfg, n_estimators=50, max_depth=3),
     )
 
     techniques_runs = [
@@ -414,42 +461,6 @@ def benchmark_all_techniques():
             df_to_save.to_csv(alt_path, index=False)
             print(f"  [WARNING] {filepath} was locked by another process. Saved to {alt_path} instead.")
 
-    # Save all outputs
-    safe_to_csv(summary_df, OUTPUT_DIR / 'segmentation_comparison_summary.csv')
-    safe_to_csv(combined_segments_df, OUTPUT_DIR / 'all_techniques_segments_output.csv')
-
-    technique_output_map = {
-        'Drift Localization Tree': ('drift_segments_output.csv', 'drift_segments_output_portfolio_view.csv'),
-        'K-Means Clustering': ('kmeans_segments_output.csv', None),
-        'AutoSlicer': ('autoslicer_results.csv', 'autoslicer_results_portfolio_view.csv'),
-        'Feature Binning': ('feature_binning_segments_output.csv', None),
-        'Gradient Boosting': ('gradient_boosting_results.csv', 'gradient_boosting_results_portfolio_view.csv'),
-    }
-
-    for tech_name, res in techniques_runs:
-        segments_df = res.get('segments', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
-        if segments_df.empty:
-            segments_df = pd.DataFrame()
-        out_name, portfolio_name = technique_output_map[tech_name]
-        if not segments_df.empty:
-            safe_to_csv(standardize_columns(segments_df, tech_name), OUTPUT_DIR / out_name)
-        else:
-            safe_to_csv(pd.DataFrame(), OUTPUT_DIR / out_name)
-
-        if portfolio_name:
-            portfolio_df = res.get('portfolio_view', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
-            if portfolio_df.empty:
-                safe_to_csv(pd.DataFrame(), OUTPUT_DIR / portfolio_name)
-            else:
-                safe_to_csv(portfolio_df, OUTPUT_DIR / portfolio_name)
-
-    if not exec_summary_df.empty:
-        safe_to_csv(exec_summary_df, OUTPUT_DIR / 'executive_summary.csv')
-    if not cross_top10_df.empty:
-        safe_to_csv(cross_top10_df, OUTPUT_DIR / 'cross_technique_top10.csv')
-    if not cross_exec_summary_df.empty:
-        safe_to_csv(cross_exec_summary_df, OUTPUT_DIR / 'cross_technique_executive_summary.csv')
-
     ranked = summary_df.sort_values('Severity_Rank')
     top_segments_df = ranked[[
         'Severity_Rank', 'Technique', 'Top_Segment_Definition', 'Segments_Generated',
@@ -459,7 +470,45 @@ def benchmark_all_techniques():
         'Business_Impact_Score', 'Top_Segment_EAD', 'Execution_Time_Sec',
         'Deterministic', 'Explainability', 'Overall_Score_100'
     ]].copy()
-    safe_to_csv(top_segments_df, OUTPUT_DIR / 'top_technique_segments_summary.csv')
+
+    if save_outputs:
+        # Save all outputs
+        safe_to_csv(summary_df, OUTPUT_DIR / 'segmentation_comparison_summary.csv')
+        safe_to_csv(combined_segments_df, OUTPUT_DIR / 'all_techniques_segments_output.csv')
+
+        technique_output_map = {
+            'Drift Localization Tree': ('drift_segments_output.csv', 'drift_segments_output_portfolio_view.csv'),
+            'K-Means Clustering': ('kmeans_segments_output.csv', None),
+            'AutoSlicer': ('autoslicer_results.csv', 'autoslicer_results_portfolio_view.csv'),
+            'Feature Binning': ('feature_binning_segments_output.csv', None),
+            'Gradient Boosting': ('gradient_boosting_results.csv', 'gradient_boosting_results_portfolio_view.csv'),
+        }
+
+        for tech_name, res in techniques_runs:
+            segments_df = res.get('segments', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
+            if segments_df.empty:
+                segments_df = pd.DataFrame()
+            out_name, portfolio_name = technique_output_map[tech_name]
+            if not segments_df.empty:
+                safe_to_csv(standardize_columns(segments_df, tech_name), OUTPUT_DIR / out_name)
+            else:
+                safe_to_csv(pd.DataFrame(), OUTPUT_DIR / out_name)
+
+            if portfolio_name:
+                portfolio_df = res.get('portfolio_view', pd.DataFrame()) if isinstance(res, dict) else pd.DataFrame()
+                if portfolio_df.empty:
+                    safe_to_csv(pd.DataFrame(), OUTPUT_DIR / portfolio_name)
+                else:
+                    safe_to_csv(portfolio_df, OUTPUT_DIR / portfolio_name)
+
+        if not exec_summary_df.empty:
+            safe_to_csv(exec_summary_df, OUTPUT_DIR / 'executive_summary.csv')
+        if not cross_top10_df.empty:
+            safe_to_csv(cross_top10_df, OUTPUT_DIR / 'cross_technique_top10.csv')
+        if not cross_exec_summary_df.empty:
+            safe_to_csv(cross_exec_summary_df, OUTPUT_DIR / 'cross_technique_executive_summary.csv')
+
+        safe_to_csv(top_segments_df, OUTPUT_DIR / 'top_technique_segments_summary.csv')
 
     # ── Print results ──────────────────────────────────────────────────────
     pd.set_option('display.max_columns', None)

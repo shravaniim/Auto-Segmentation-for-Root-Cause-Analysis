@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1680 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data are evaluated by five segmentation techniques in parallel; each candidate segment is scored for drift, performance and business impact, then merged into one cross-technique ranked report.">
+<svg viewBox="0 0 1680 1010" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data are evaluated by five segmentation techniques in parallel; each candidate segment is scored for drift, performance and business impact, then merged into one cross-technique ranked report. Optionally, the same pipeline repeats once per month for trend analysis, adding recurrence scoring, early-warning forecasting, and a Q&amp;A assistant.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -8,102 +8,184 @@
   <style>
     .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
     .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
+    .accent2 { fill:#eff6ff; stroke:#2563eb; stroke-width:2; rx:8; }
     .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
     .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
+    .titleAccent2 { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1e3a8a; }
     .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
     .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow); }
+    .edgeDash { stroke:#64748b; stroke-width:1.5; fill:none; marker-end:url(#arrow); stroke-dasharray:5,4; }
     .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#475569; }
     .h1 { font-family:Arial,Helvetica,sans-serif; font-size:20px; font-weight:700; fill:#0f172a; }
     .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12.5px; fill:#475569; }
+    .sectionLabel { font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:700; fill:#1e3a8a; }
   </style>
 
-  <text x="840" y="30" text-anchor="middle" class="h1">Auto-Segmentation for Root Cause Analysis — High-Level Flow</text>
-  <text x="840" y="50" text-anchor="middle" class="h2">Five techniques discover candidate segments in parallel; every candidate is scored the same way and merged into one ranked report.</text>
+  <text x="840" y="28" text-anchor="middle" class="h1">Auto-Segmentation for Root Cause Analysis — High-Level Flow</text>
+  <text x="840" y="47" text-anchor="middle" class="h2">Five techniques discover candidate segments in parallel; every candidate is scored the same way and merged into one ranked report.</text>
 
-  <!-- Sources -->
-  <rect class="box" x="40" y="200" width="180" height="56"/>
-  <text x="130" y="223" text-anchor="middle" class="title">Development Data</text>
-  <text x="130" y="240" text-anchor="middle" class="sub">age, income, region,</text>
-  <text x="130" y="252" text-anchor="middle" class="sub">occupation, target, score, ead</text>
+  <!-- ================= ROW 1: CLASSIC (single period) ================= -->
 
-  <rect class="box" x="40" y="280" width="180" height="56"/>
-  <text x="130" y="303" text-anchor="middle" class="title">Monitoring Data</text>
-  <text x="130" y="320" text-anchor="middle" class="sub">same schema,</text>
-  <text x="130" y="332" text-anchor="middle" class="sub">later scoring period</text>
+  <rect class="box" x="40" y="180" width="180" height="66"/>
+  <text x="130" y="203" text-anchor="middle" class="title">Development Data</text>
+  <text x="130" y="220" text-anchor="middle" class="sub">age, income, region,</text>
+  <text x="130" y="232" text-anchor="middle" class="sub">occupation, target, score, ead</text>
 
-  <path class="edge" d="M220,228 L268,262"/>
-  <path class="edge" d="M220,308 L268,298"/>
+  <rect class="box" x="40" y="260" width="180" height="66"/>
+  <text x="130" y="283" text-anchor="middle" class="title">Monitoring Data</text>
+  <text x="130" y="300" text-anchor="middle" class="sub">1 file (classic), or N monthly</text>
+  <text x="130" y="312" text-anchor="middle" class="sub">files if Trend Analysis = Yes</text>
 
-  <!-- Schema guard -->
-  <rect class="box" x="270" y="224" width="200" height="112"/>
-  <text x="370" y="248" text-anchor="middle" class="title">Feature Schema Guard</text>
-  <text x="370" y="267" text-anchor="middle" class="sub">keeps: age, income,</text>
-  <text x="370" y="280" text-anchor="middle" class="sub">region, occupation</text>
-  <text x="370" y="299" text-anchor="middle" class="sub">excludes: target, score, ead,</text>
-  <text x="370" y="312" text-anchor="middle" class="sub">shap_*, customer_id</text>
-  <text x="370" y="331" text-anchor="middle" class="sub" font-style="italic">(no label leakage into segments)</text>
+  <path class="edge" d="M220,208 L268,238"/>
+  <path class="edge" d="M220,288 L268,278"/>
 
-  <!-- Fan out to 5 techniques -->
-  <rect class="box" x="520" y="96" width="230" height="56"/>
-  <text x="635" y="120" text-anchor="middle" class="title">AutoSlicer</text>
-  <text x="635" y="137" text-anchor="middle" class="sub">beam-search rule combos</text>
+  <rect class="box" x="270" y="204" width="200" height="112"/>
+  <text x="370" y="228" text-anchor="middle" class="title">Feature Schema Guard</text>
+  <text x="370" y="247" text-anchor="middle" class="sub">keeps: age, income,</text>
+  <text x="370" y="260" text-anchor="middle" class="sub">region, occupation</text>
+  <text x="370" y="279" text-anchor="middle" class="sub">excludes: target, score, ead,</text>
+  <text x="370" y="292" text-anchor="middle" class="sub">shap_*, customer_id</text>
+  <text x="370" y="311" text-anchor="middle" class="sub" font-style="italic">(no label leakage into segments)</text>
 
-  <rect class="box" x="520" y="174" width="230" height="56"/>
-  <text x="635" y="198" text-anchor="middle" class="title">Feature Binning</text>
-  <text x="635" y="215" text-anchor="middle" class="sub">per-feature bins</text>
+  <rect class="box" x="520" y="76" width="230" height="56"/>
+  <text x="635" y="100" text-anchor="middle" class="title">AutoSlicer</text>
+  <text x="635" y="117" text-anchor="middle" class="sub">beam-search rule combos</text>
 
-  <rect class="box" x="520" y="252" width="230" height="56"/>
-  <text x="635" y="276" text-anchor="middle" class="title">Decision Tree (GBDT)</text>
-  <text x="635" y="293" text-anchor="middle" class="sub">gradient-boosted leaves</text>
+  <rect class="box" x="520" y="154" width="230" height="56"/>
+  <text x="635" y="178" text-anchor="middle" class="title">Feature Binning</text>
+  <text x="635" y="195" text-anchor="middle" class="sub">per-feature bins</text>
 
-  <rect class="box" x="520" y="330" width="230" height="56"/>
-  <text x="635" y="354" text-anchor="middle" class="title">Clustering (K-Means)</text>
-  <text x="635" y="371" text-anchor="middle" class="sub">drift-aware clusters</text>
+  <rect class="box" x="520" y="232" width="230" height="56"/>
+  <text x="635" y="256" text-anchor="middle" class="title">Decision Tree (GBDT)</text>
+  <text x="635" y="273" text-anchor="middle" class="sub">gradient-boosted leaves</text>
 
-  <rect class="box" x="520" y="408" width="230" height="56"/>
-  <text x="635" y="432" text-anchor="middle" class="title">Drift Localization Tree</text>
-  <text x="635" y="449" text-anchor="middle" class="sub">dev-vs-mon split tree</text>
+  <rect class="box" x="520" y="310" width="230" height="56"/>
+  <text x="635" y="334" text-anchor="middle" class="title">Clustering (K-Means)</text>
+  <text x="635" y="351" text-anchor="middle" class="sub">drift-aware clusters</text>
 
-  <path class="edge" d="M470,280 L500,124 L518,124"/>
-  <path class="edge" d="M470,280 L500,202 L518,202"/>
-  <path class="edge" d="M470,280 L518,280"/>
-  <path class="edge" d="M470,280 L500,358 L518,358"/>
-  <path class="edge" d="M470,280 L500,436 L518,436"/>
-  <text x="480" y="272" class="edgelabel">run in</text>
-  <text x="480" y="284" class="edgelabel">parallel</text>
+  <rect class="box" x="520" y="388" width="230" height="56"/>
+  <text x="635" y="412" text-anchor="middle" class="title">Drift Localization Tree</text>
+  <text x="635" y="429" text-anchor="middle" class="sub">dev-vs-mon split tree</text>
 
-  <!-- Metrics & scoring -->
-  <path class="edge" d="M750,124 L800,124 L800,255 L818,255"/>
-  <path class="edge" d="M750,202 L800,202 L800,268 L818,268"/>
-  <path class="edge" d="M750,280 L818,280"/>
-  <path class="edge" d="M750,358 L800,358 L800,292 L818,292"/>
-  <path class="edge" d="M750,436 L800,436 L800,305 L818,305"/>
+  <path class="edge" d="M470,260 L500,104 L518,104"/>
+  <path class="edge" d="M470,260 L500,182 L518,182"/>
+  <path class="edge" d="M470,260 L518,260"/>
+  <path class="edge" d="M470,260 L500,338 L518,338"/>
+  <path class="edge" d="M470,260 L500,416 L518,416"/>
+  <text x="480" y="252" class="edgelabel">run in</text>
+  <text x="480" y="264" class="edgelabel">parallel</text>
 
-  <rect class="box" x="820" y="228" width="260" height="104"/>
-  <text x="950" y="252" text-anchor="middle" class="title">Segment Metrics &amp; Impact Scoring</text>
-  <text x="950" y="271" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
-  <text x="950" y="286" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
-  <text x="950" y="305" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
-  <text x="950" y="322" text-anchor="middle" class="sub" font-style="italic">+ heatmap/bubble/waterfall per technique (Tab 1)</text>
+  <path class="edge" d="M750,104 L800,104 L800,235 L818,235"/>
+  <path class="edge" d="M750,182 L800,182 L800,248 L818,248"/>
+  <path class="edge" d="M750,260 L818,260"/>
+  <path class="edge" d="M750,338 L800,338 L800,272 L818,272"/>
+  <path class="edge" d="M750,416 L800,416 L800,285 L818,285"/>
 
-  <!-- Cross-technique ranking -->
-  <path class="edge" d="M1080,280 L1138,280"/>
-  <text x="1088" y="272" class="edgelabel">10 worst per</text>
-  <text x="1088" y="296" class="edgelabel">technique</text>
+  <rect class="box" x="820" y="208" width="260" height="104"/>
+  <text x="950" y="232" text-anchor="middle" class="title">Segment Metrics &amp; Impact Scoring</text>
+  <text x="950" y="251" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
+  <text x="950" y="266" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
+  <text x="950" y="285" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
+  <text x="950" y="302" text-anchor="middle" class="sub" font-style="italic">+ heatmap/bubble/waterfall per technique (Tab 1)</text>
 
-  <rect class="box" x="1140" y="228" width="230" height="104"/>
-  <text x="1255" y="252" text-anchor="middle" class="title">Cross-Technique Ranking</text>
-  <text x="1255" y="271" text-anchor="middle" class="sub">normalize Root Cause Score</text>
-  <text x="1255" y="286" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
-  <text x="1255" y="305" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes + 10×5 table (Tab 2)</text>
+  <path class="edge" d="M1080,260 L1138,260"/>
+  <text x="1088" y="252" class="edgelabel">10 worst per</text>
+  <text x="1088" y="276" class="edgelabel">technique</text>
 
-  <!-- Executive insights -->
-  <path class="edge" d="M1370,280 L1418,280"/>
-  <text x="1378" y="272" class="edgelabel">renders</text>
+  <rect class="box" x="1140" y="208" width="230" height="104"/>
+  <text x="1255" y="232" text-anchor="middle" class="title">Cross-Technique Ranking</text>
+  <text x="1255" y="251" text-anchor="middle" class="sub">normalize Root Cause Score</text>
+  <text x="1255" y="266" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
+  <text x="1255" y="285" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes + 10×5 table (Tab 2)</text>
 
-  <rect class="accent" x="1420" y="228" width="220" height="104"/>
-  <text x="1530" y="252" text-anchor="middle" class="titleAccent">Executive Insights</text>
-  <text x="1530" y="271" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
-  <text x="1530" y="286" text-anchor="middle" class="sub">executive summary</text>
-  <text x="1530" y="305" text-anchor="middle" class="sub">AI narrative (Streamlit)</text>
+  <path class="edge" d="M1370,260 L1418,260"/>
+  <text x="1378" y="252" class="edgelabel">renders</text>
+
+  <rect class="accent" x="1420" y="208" width="220" height="104"/>
+  <text x="1530" y="232" text-anchor="middle" class="titleAccent">Executive Insights</text>
+  <text x="1530" y="251" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
+  <text x="1530" y="266" text-anchor="middle" class="sub">executive summary</text>
+  <text x="1530" y="285" text-anchor="middle" class="sub">AI narrative (Tab 1 / Tab 3)</text>
+
+  <!-- ================= BRANCH LABEL ================= -->
+
+  <path class="edge" d="M130,326 L130,470 L60,470"/>
+  <rect class="accent2" x="60" y="472" width="270" height="48"/>
+  <text x="195" y="491" text-anchor="middle" class="titleAccent2" font-size="12">Trend Analysis = Yes (Tab 2 toggle)</text>
+  <text x="195" y="507" text-anchor="middle" class="sub">user supplies N monthly files instead of 1</text>
+
+  <path class="edge" d="M195,520 L195,556"/>
+
+  <!-- ================= ROW 2: TREND ANALYSIS ADD-ON ================= -->
+
+  <text x="840" y="548" text-anchor="middle" class="sectionLabel">Trend Analysis (add-on) — repeats the pipeline above once per month, then compares across months</text>
+
+  <rect class="box" x="60" y="566" width="230" height="80"/>
+  <text x="175" y="588" text-anchor="middle" class="title">Loop Over N Months</text>
+  <text x="175" y="605" text-anchor="middle" class="sub">runs everything in Row 1 once per</text>
+  <text x="175" y="618" text-anchor="middle" class="sub">dev + monₙ pair (same 5 techniques,</text>
+  <text x="175" y="631" text-anchor="middle" class="sub">same scoring, unchanged)</text>
+
+  <path class="edge" d="M290,606 L318,606"/>
+
+  <rect class="box" x="320" y="566" width="230" height="80"/>
+  <text x="435" y="588" text-anchor="middle" class="title">Match Segments Across Months</text>
+  <text x="435" y="605" text-anchor="middle" class="sub">same technique + same rule text</text>
+  <text x="435" y="618" text-anchor="middle" class="sub">= one recurring segment group</text>
+
+  <path class="edge" d="M550,606 L578,606"/>
+
+  <rect class="box" x="580" y="566" width="240" height="80"/>
+  <text x="700" y="588" text-anchor="middle" class="title">Level 1: Recurrence Metrics</text>
+  <text x="700" y="605" text-anchor="middle" class="sub">Frequency · Recency Factor</text>
+  <text x="700" y="618" text-anchor="middle" class="sub">Consistency Score</text>
+  <text x="700" y="633" text-anchor="middle" class="sub" font-style="italic">how often / how recent / how continuous</text>
+
+  <path class="edge" d="M820,606 L848,606"/>
+
+  <rect class="box" x="850" y="566" width="220" height="80"/>
+  <text x="960" y="588" text-anchor="middle" class="title">Level 2: Trend Impact Score</text>
+  <text x="960" y="608" text-anchor="middle" class="sub" font-weight="700">blends Frequency + Recency +</text>
+  <text x="960" y="621" text-anchor="middle" class="sub" font-weight="700">Consistency into one score</text>
+
+  <path class="edge" d="M1070,606 L1098,606"/>
+
+  <rect class="box" x="1100" y="566" width="250" height="80"/>
+  <text x="1225" y="588" text-anchor="middle" class="title">SIS Boost → Root Cause Score</text>
+  <text x="1225" y="605" text-anchor="middle" class="sub">recurring/worsening segments get a</text>
+  <text x="1225" y="618" text-anchor="middle" class="sub">boosted SIS, Root Cause Score recomputed</text>
+
+  <path class="edge" d="M1350,606 L1378,606"/>
+
+  <rect class="box" x="1380" y="566" width="240" height="80"/>
+  <text x="1500" y="588" text-anchor="middle" class="title">Cross-Technique Trend Ranking</text>
+  <text x="1500" y="605" text-anchor="middle" class="sub">same idea as Cross-Technique</text>
+  <text x="1500" y="618" text-anchor="middle" class="sub">Ranking above, trend-boosted</text>
+
+  <!-- outputs of trend row -->
+  <path class="edge" d="M1500,646 L1500,672 L1220,672 L1220,700"/>
+  <path class="edge" d="M1500,646 L1500,700"/>
+
+  <rect class="accent" x="1080" y="702" width="260" height="90"/>
+  <text x="1210" y="726" text-anchor="middle" class="titleAccent">Trend Executive Insights</text>
+  <text x="1210" y="745" text-anchor="middle" class="sub">recurrence table · heatmap · bubble</text>
+  <text x="1210" y="758" text-anchor="middle" class="sub">waterfall · metric time series (Tab 2/3)</text>
+
+  <rect class="accent" x="1360" y="702" width="260" height="90"/>
+  <text x="1490" y="726" text-anchor="middle" class="titleAccent">🔮 Early Warning Forecast</text>
+  <text x="1490" y="745" text-anchor="middle" class="sub">projects each segment's score forward,</text>
+  <text x="1490" y="758" text-anchor="middle" class="sub">flags ones headed for the alert threshold</text>
+
+  <!-- ================= Q&A ASSISTANT (shared) ================= -->
+
+  <path class="edge" d="M1530,312 L1530,470 L960,470 L960,838"/>
+  <path class="edge" d="M1210,792 L1080,838"/>
+  <path class="edge" d="M1490,792 L1200,838"/>
+
+  <rect class="accent2" x="480" y="840" width="720" height="90"/>
+  <text x="840" y="864" text-anchor="middle" class="titleAccent2">💬 Ask About These Results (Q&amp;A Assistant)</text>
+  <text x="840" y="883" text-anchor="middle" class="sub">reads whichever results currently exist — classic and/or trend —</text>
+  <text x="840" y="896" text-anchor="middle" class="sub">and answers free-form questions grounded in those actual numbers</text>
+
+  <text x="840" y="970" text-anchor="middle" class="sub" font-style="italic">If Trend Analysis = No: only Row 1 runs, output is Executive Insights + Q&amp;A, exactly as before this feature existed.</text>
 </svg>

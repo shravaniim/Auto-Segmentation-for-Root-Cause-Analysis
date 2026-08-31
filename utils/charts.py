@@ -67,6 +67,128 @@ def segment_bubble_chart(df: pd.DataFrame):
     return fig
 
 
+def segment_metric_time_series_chart(
+    df: pd.DataFrame,
+    metric_col: str,
+    segment_label: str = "",
+    forecast_point: float | None = None,
+):
+    """One segment's raw metric value across months (x = Period, y = metric_col).
+    df must already be filtered to a single (Technique, Segment_Definition)
+    and sorted by Period_Index -- see core.multi_period_analysis.build_segment_time_series.
+
+    forecast_point, if given, plots one extra dashed-line point after the
+    last actual month -- the early-warning forecast's predicted next value
+    (see core.multi_period_analysis.forecast_segment_scores). Only applies
+    to Root_Cause_Score, since that's what the forecast is fit on."""
+    if df.empty or metric_col not in df.columns or "Period" not in df.columns:
+        return None
+
+    fig, ax = plt.subplots(figsize=(7, 3.5))
+    x_labels = df["Period"].astype(str).tolist()
+    y_values = pd.to_numeric(df[metric_col], errors="coerce").tolist()
+    ax.plot(x_labels, y_values, marker="o", color="#1f77b4", label="Actual")
+
+    if forecast_point is not None and metric_col == "Root_Cause_Score" and y_values:
+        ax.plot(
+            [x_labels[-1], "Next month (forecast)"],
+            [y_values[-1], forecast_point],
+            marker="o", linestyle="--", color="#d62728", label="Forecast",
+        )
+        ax.legend(fontsize=8)
+
+    ax.set_xlabel("Month")
+    ax.set_ylabel(metric_col)
+    ax.set_title(f"{metric_col} over time" + (f" — {segment_label}" if segment_label else ""))
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return fig
+
+
+def segment_all_metrics_chart(df: pd.DataFrame, segment_label: str = ""):
+    """All of a segment's key 0-1-scale metrics on one chart, across every
+    month analyzed -- Mon_Pct, Mon_AUC, Mon_BR, Root_Cause_Score. df must
+    already be reindexed against the *full* period list (see
+    core.multi_period_analysis.reindex_segment_time_series), so a month the
+    segment didn't rank in its technique's worst-N shows as a real gap in
+    each line, not a skipped step that implies continuity there wasn't."""
+    metric_cols = [c for c in ["Mon_Pct", "Mon_AUC", "Mon_BR", "Root_Cause_Score"] if c in df.columns]
+    if df.empty or not metric_cols or "Period" not in df.columns:
+        return None
+
+    colors = {"Mon_Pct": "#1f77b4", "Mon_AUC": "#2ca02c", "Mon_BR": "#d62728", "Root_Cause_Score": "#9467bd"}
+    labels = {
+        "Mon_Pct": "Population %", "Mon_AUC": "AUC", "Mon_BR": "Bad Rate",
+        "Root_Cause_Score": "Root Cause Score",
+    }
+
+    fig, ax = plt.subplots(figsize=(9, 4.2))
+    x_labels = df["Period"].astype(str).tolist()
+    any_data = False
+    for col in metric_cols:
+        y = pd.to_numeric(df[col], errors="coerce").tolist()
+        if all(v != v for v in y):  # all-NaN column, e.g. never appeared
+            continue
+        any_data = True
+        ax.plot(x_labels, y, marker="o", label=labels.get(col, col), color=colors.get(col))
+    if not any_data:
+        return None
+
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Value (0-1 scale)")
+    ax.set_ylim(-0.02, 1.02)
+    ax.set_title("All Key Metrics Over Time" + (f" — {segment_label}" if segment_label else ""))
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    fig.tight_layout()
+    return fig
+
+
+def early_warning_urgency_chart(forecast_df: pd.DataFrame, top_n: int = 10):
+    """Horizontal bar chart of the most urgent Early Warning segments --
+    shortest bar (fewest months to breach) at the top. Bars are solid for
+    Medium (3+ points) confidence and hatched for Low (2 points), so the
+    least-certain forecasts are visually distinguishable at a glance, not
+    just readable from a text column.
+
+    forecast_df is core.multi_period_analysis.forecast_segment_scores'
+    output; only Early_Warning=True rows are plotted."""
+    if forecast_df.empty or "Early_Warning" not in forecast_df.columns:
+        return None
+
+    flagged = forecast_df[forecast_df["Early_Warning"]].sort_values("Months_To_Breach")
+    if flagged.empty:
+        return None
+
+    flagged = flagged.head(top_n)
+    labels = [
+        f"{r.Technique}: {r.Segment_Definition}"[:60]
+        for r in flagged.itertuples()
+    ]
+    months = flagged["Months_To_Breach"].tolist()
+    hatches = ["" if "Medium" in c else "//" for c in flagged["Confidence"]]
+
+    fig, ax = plt.subplots(figsize=(8, max(2.5, 0.5 * len(flagged))))
+    y_pos = range(len(flagged))
+    bars = ax.barh(y_pos, months, color="#f97316", edgecolor="#7c2d12")
+    for bar, hatch in zip(bars, hatches):
+        bar.set_hatch(hatch)
+    ax.set_yticks(list(y_pos))
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.invert_yaxis()  # most urgent (fewest months) at the top
+    ax.set_xlabel("Months Until Projected to Cross Alert Threshold")
+    ax.set_title("Early Warning — Most Urgent Segments")
+    for bar, m in zip(bars, months):
+        ax.text(bar.get_width() + 0.05, bar.get_y() + bar.get_height() / 2, str(m),
+                va="center", fontsize=8)
+    # Legend explaining the hatch pattern, since color alone doesn't show confidence.
+    solid_patch = plt.Rectangle((0, 0), 1, 1, facecolor="#f97316", edgecolor="#7c2d12", label="Medium confidence (3+ months of data)")
+    hatch_patch = plt.Rectangle((0, 0), 1, 1, facecolor="#f97316", edgecolor="#7c2d12", hatch="//", label="Low confidence (2 months of data)")
+    ax.legend(handles=[solid_patch, hatch_patch], fontsize=7, loc="lower right")
+    fig.tight_layout()
+    return fig
+
+
 def sis_waterfall_chart(segment_row: pd.Series, weights: dict | None = None):
     """Breaks SIS_Raw down into its weighted components for one segment."""
     weights = weights or {"psi": 0.25, "business_impact": 0.25, "gini_drop": 0.20, "ks_drop": 0.15, "br_shift": 0.15}

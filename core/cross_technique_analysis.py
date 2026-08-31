@@ -31,8 +31,17 @@ def _population_fingerprint(row: pd.Series) -> tuple:
 
 def _merge_cross_technique_duplicates(pool: pd.DataFrame, rank_col: str) -> pd.DataFrame:
     """Consolidate rows that are the same population discovered by more than
-    one technique into a single row, keeping the highest-rank_col instance
-    and listing every technique that found it."""
+    one technique into a single row, keeping the highest-rank_col instance's
+    metrics and listing every technique that found it.
+
+    The displayed Segment_Definition is swapped to whichever technique's
+    rule text is shortest among the duplicates -- e.g. AutoSlicer/Feature
+    Binning's "region = West" instead of K-Means's equivalent but far less
+    readable "Cluster_4: region != South AND occupation != Business AND
+    age < 29.5" for the exact same population. Safe to swap: by definition
+    of being duplicates here, every metric (Dev_Count/Mon_Count/PSI/etc.)
+    is already identical across the group, so this only changes which
+    label is shown, never any number."""
     pool = pool.copy()
     pool["_fp"] = pool.apply(_population_fingerprint, axis=1)
 
@@ -41,6 +50,10 @@ def _merge_cross_technique_duplicates(pool: pd.DataFrame, rank_col: str) -> pd.D
         techniques = sorted(group["Technique"].astype(str).unique())
         best = group.sort_values(rank_col, ascending=False).iloc[0].copy()
         best["Discovered_By"] = ", ".join(techniques)
+        if len(group) > 1 and "Segment_Definition" in group.columns:
+            best["Segment_Definition"] = min(
+                group["Segment_Definition"].astype(str), key=len
+            )
         kept_rows.append(best)
 
     merged = pd.DataFrame(kept_rows).drop(columns=["_fp"]).reset_index(drop=True)

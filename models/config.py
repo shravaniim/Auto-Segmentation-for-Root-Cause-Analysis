@@ -464,3 +464,44 @@ class FeatureBinningConfig:
     max_interaction_features: int = 8
 
     max_interaction_pairs: int = 15
+
+
+# ============================================================================
+# Trend Analysis Configuration
+# ============================================================================
+
+@dataclass
+class TrendAnalysisConfig:
+    """
+    Configuration for multi-period trend analysis (core/multi_period_analysis.py).
+
+    Segments are rediscovered independently for each dev-vs-monN period, then
+    matched across periods by their (already-canonicalized) Segment_Definition
+    text within one technique's pool.
+    """
+
+    # How many of a technique's worst segments (by Severity_Score) count as
+    # "appearing" in a given period, for Frequency/Recency/Consistency.
+    n_worst: int = 10
+
+    # Recency_Factor = 0.5 ** (periods_since_last_appearance / recency_half_life_periods)
+    recency_half_life_periods: float = 2.0
+
+    # Trend_Impact_Score = w_frequency*Frequency + w_recency*Recency_Factor + w_consistency*Consistency_Score
+    # Must sum to 1.0.
+    w_frequency: float = 0.4
+
+    w_recency: float = 0.3
+
+    w_consistency: float = 0.3
+
+    # SIS_Trend = SIS_Raw * (1 + trend_weight * Trend_Impact_Score)
+    trend_weight: float = 0.5
+
+    # Early-warning forecast (core.multi_period_analysis.forecast_segment_scores):
+    # a segment is flagged once its projected Root_Cause_Score is on track to
+    # cross this threshold within forecast_horizon_months. Not a validated
+    # industry cutoff -- same transparency caveat as the TIS weights above.
+    forecast_alert_threshold: float = 0.5
+
+    forecast_horizon_months: int = 6

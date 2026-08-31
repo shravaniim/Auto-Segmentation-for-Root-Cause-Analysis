@@ -1,3 +1,22 @@
+def build_qa_prompt(question: str, context_text: str) -> str:
+
+    return f"""
+You are a senior credit risk model validator answering a colleague's question
+about a segmentation/root-cause analysis run they just performed.
+
+Here is the current run's data (segment definitions and their metrics):
+{context_text}
+
+Question:
+{question}
+
+Answer using only the numbers and segments shown above. If the data above
+doesn't contain enough information to answer, say so plainly instead of
+guessing. Keep the answer concise and reference specific segment names or
+numbers where relevant.
+"""
+
+
 def build_segment_prompt(segment_info: dict) -> str:
 
     return f"""

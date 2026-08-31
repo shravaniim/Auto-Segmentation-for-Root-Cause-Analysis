@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1000 980" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five techniques differ only in how they generate candidate segments. Every candidate then passes through the same evaluation, filtering, deduplication, scoring, and ranking pipeline, so differences in the final output come from the technique's discovery method, not inconsistent metric implementations.">
+<svg viewBox="0 0 1000 1900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five techniques differ only in how they generate candidate segments. Every candidate then passes through the same evaluation, filtering, deduplication, scoring, and ranking pipeline, so differences in the final output come from the technique's discovery method, not inconsistent metric implementations. Optionally, this whole pipeline repeats once per monitoring month for trend analysis, adding recurrence scoring, a boosted root cause score, early-warning forecasting, and a Q&amp;A assistant.">
   <defs>
     <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -7,13 +7,18 @@
   <style>
     .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
     .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
+    .accent2 { fill:#eff6ff; stroke:#2563eb; stroke-width:2; rx:8; }
     .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
     .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
+    .titleAccent2 { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1e3a8a; }
     .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
     .small { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; font-weight:700; fill:#0f172a; }
     .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow3); }
+    .edgeDash { stroke:#64748b; stroke-width:1.5; fill:none; marker-end:url(#arrow3); stroke-dasharray:5,4; }
     .h1 { font-family:Arial,Helvetica,sans-serif; font-size:19px; font-weight:700; fill:#0f172a; }
     .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12px; fill:#475569; }
+    .sectionLabel { font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:700; fill:#1e3a8a; }
+    .formula { font-family:"Courier New",Consolas,monospace; font-size:10.5px; fill:#0f172a; }
   </style>
 
   <text x="500" y="28" text-anchor="middle" class="h1">Low-Level Pipeline — One Contract After Discovery</text>
@@ -83,6 +88,11 @@
   <rect class="box" x="350" y="700" width="300" height="54"/>
   <text x="500" y="732" text-anchor="middle" class="title">Technique Top-N</text>
 
+  <path class="edgeDash" d="M650,727 L760,727 L760,942"/>
+  <text x="770" y="723" class="sub" font-style="italic">if Trend Analysis = Yes,</text>
+  <text x="770" y="736" class="sub" font-style="italic">this result (for each of</text>
+  <text x="770" y="749" class="sub" font-style="italic">N months) also feeds ↓</text>
+
   <path class="edge" d="M500,754 L500,772"/>
   <rect class="accent" x="330" y="774" width="340" height="66"/>
   <text x="500" y="800" text-anchor="middle" class="titleAccent">Cross-Technique Ranking</text>
@@ -91,4 +101,72 @@
   <text x="500" y="870" text-anchor="middle" class="sub" font-style="italic">Severity Score ranks within one technique's own pool; Root Cause</text>
   <text x="500" y="886" text-anchor="middle" class="sub" font-style="italic">Score is normalized the same way for every technique, so only it</text>
   <text x="500" y="902" text-anchor="middle" class="sub" font-style="italic">is safe to compare across techniques.</text>
+
+  <!-- ================= TREND ANALYSIS CONTINUATION ================= -->
+
+  <text x="500" y="944" text-anchor="middle" class="sectionLabel">Trend Analysis (add-on) — everything above repeats once per monitoring month, then this compares across months</text>
+
+  <rect class="accent2" x="270" y="958" width="460" height="50"/>
+  <text x="500" y="978" text-anchor="middle" class="titleAccent2" font-size="12">N × Technique Top-N (one set per month)</text>
+  <text x="500" y="994" text-anchor="middle" class="sub">dev + mon₁, dev + mon₂, ... dev + monₙ</text>
+
+  <path class="edge" d="M500,1008 L500,1026"/>
+  <rect class="box" x="270" y="1028" width="460" height="64"/>
+  <text x="500" y="1052" text-anchor="middle" class="title">Match Segments Across Months</text>
+  <text x="500" y="1070" text-anchor="middle" class="sub">same Technique + same Segment_Definition text</text>
+  <text x="500" y="1084" text-anchor="middle" class="sub">= one recurring group (core/multi_period_analysis.py)</text>
+
+  <path class="edge" d="M500,1092 L500,1110"/>
+  <rect class="box" x="230" y="1112" width="540" height="112"/>
+  <text x="500" y="1134" text-anchor="middle" class="title">Level 1: Recurrence Metrics</text>
+  <text x="500" y="1155" text-anchor="middle" class="formula">Frequency = periods_appeared / total_periods</text>
+  <text x="500" y="1172" text-anchor="middle" class="formula">Recency_Factor = 0.5 ^ (periods_since_last / 2)</text>
+  <text x="500" y="1189" text-anchor="middle" class="formula">Consistency_Score = longest_unbroken_streak / total_periods</text>
+  <text x="500" y="1210" text-anchor="middle" class="sub" font-style="italic">how often / how recent / how continuous — three separate signals</text>
+
+  <path class="edge" d="M500,1224 L500,1242"/>
+  <rect class="box" x="270" y="1244" width="460" height="66"/>
+  <text x="500" y="1266" text-anchor="middle" class="title">Level 2: Trend Impact Score (TIS)</text>
+  <text x="500" y="1288" text-anchor="middle" class="formula">TIS = 0.4·Frequency + 0.3·Recency_Factor + 0.3·Consistency_Score</text>
+
+  <path class="edge" d="M500,1310 L500,1328"/>
+  <rect class="box" x="270" y="1330" width="460" height="66"/>
+  <text x="500" y="1352" text-anchor="middle" class="title">SIS Boost</text>
+  <text x="500" y="1373" text-anchor="middle" class="formula">SIS_Trend = SIS_Raw × (1 + 0.5 × TIS)</text>
+  <text x="500" y="1388" text-anchor="middle" class="sub" font-style="italic">TIS = 0 → SIS_Trend = SIS_Raw, unchanged</text>
+
+  <path class="edge" d="M500,1396 L500,1414"/>
+  <rect class="box" x="210" y="1416" width="580" height="94"/>
+  <text x="500" y="1438" text-anchor="middle" class="title">Recompute Root Cause Score</text>
+  <text x="500" y="1459" text-anchor="middle" class="formula">Root_Cause_Score_Trend = 0.35·norm(SIS_Trend) + 0.30·norm(DIS)</text>
+  <text x="500" y="1474" text-anchor="middle" class="formula">+ 0.20·norm(PSI) + 0.15·norm(SHAP-shift)</text>
+  <text x="500" y="1491" text-anchor="middle" class="sub" font-style="italic">Severity_Score_Trend = Root_Cause_Score_Trend × 20, renormalized per technique</text>
+
+  <path class="edge" d="M500,1510 L500,1528"/>
+  <rect class="accent" x="330" y="1530" width="340" height="66"/>
+  <text x="500" y="1556" text-anchor="middle" class="titleAccent">Cross-Technique Trend Ranking</text>
+  <text x="500" y="1576" text-anchor="middle" class="sub">same idea as Cross-Technique Ranking above, trend-boosted</text>
+
+  <path class="edge" d="M500,1596 L500,1608 L280,1608 L280,1626"/>
+  <path class="edge" d="M500,1596 L500,1608 L720,1608 L720,1626"/>
+
+  <rect class="accent" x="150" y="1628" width="260" height="80"/>
+  <text x="280" y="1650" text-anchor="middle" class="titleAccent" font-size="12">🔮 Early Warning Forecast</text>
+  <text x="280" y="1670" text-anchor="middle" class="formula" font-size="9.5">slope,intercept = polyfit(period, RCS)</text>
+  <text x="280" y="1684" text-anchor="middle" class="sub">flag if projected to cross threshold soon</text>
+
+  <rect class="accent" x="590" y="1628" width="260" height="80"/>
+  <text x="720" y="1650" text-anchor="middle" class="titleAccent" font-size="12">Trend Executive Insights</text>
+  <text x="720" y="1670" text-anchor="middle" class="sub">recurrence table · charts · metric</text>
+  <text x="720" y="1684" text-anchor="middle" class="sub">time series (Tab 2 / Tab 3)</text>
+
+  <path class="edge" d="M280,1708 L280,1730 L410,1730"/>
+  <path class="edge" d="M720,1708 L720,1730 L590,1730"/>
+
+  <rect class="accent2" x="290" y="1732" width="420" height="60"/>
+  <text x="500" y="1756" text-anchor="middle" class="titleAccent2" font-size="12">💬 Ask About These Results (Q&amp;A Assistant)</text>
+  <text x="500" y="1774" text-anchor="middle" class="sub">answers free-form questions using whichever results exist</text>
+
+  <text x="500" y="1830" text-anchor="middle" class="sub" font-style="italic">If Trend Analysis = No: nothing below "Technique Top-N" on this page runs; output stops</text>
+  <text x="500" y="1846" text-anchor="middle" class="sub" font-style="italic">at Cross-Technique Ranking above, exactly as before this feature existed.</text>
 </svg>
