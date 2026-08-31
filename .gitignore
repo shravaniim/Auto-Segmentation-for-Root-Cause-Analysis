@@ -7,3 +7,14 @@ __pycache__/
 venv/
 .env
 .streamlit/secrets.toml
+
+# Large datasets
+data/*_1M.csv
+data/*_1M_shap.csv
+
+# Python generated files
+__pycache__/
+*.pyc
+
+# Secrets
+.env
