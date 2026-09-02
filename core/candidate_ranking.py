@@ -22,6 +22,7 @@ from metrics.business_metrics import (
     calculate_confidence,
     calculate_sis,
     calculate_dis,
+    calculate_dis_symmetric,
     calculate_root_cause_score,
 )
 from metrics.drift_metrics import interpret_psi
@@ -33,11 +34,6 @@ from metrics.drift_metrics import interpret_psi
 
 def compute_severity_scores(
     evaluated: list[dict],
-    w_psi: float = 0.25,
-    w_business_impact: float = 0.25,
-    w_gini_drop: float = 0.20,
-    w_ks_drop: float = 0.15,
-    w_br_shift: float = 0.15,
     significance_alpha: float = 0.05,
 ) -> list[dict]:
     """Compute BH-adjusted p-values, severity scores, significance flags,
@@ -100,6 +96,10 @@ def compute_severity_scores(
         calculate_dis(population_drifts[i], auc_drops[i], exposure_factors[i], psi_vals[i])
         for i in range(len(evaluated))
     ]
+    dis_symmetric_vals = [
+        calculate_dis_symmetric(population_drifts[i], auc_drops[i], exposure_factors[i], psi_vals[i])
+        for i in range(len(evaluated))
+    ]
 
     norm_sis = min_max_normalize(sis_vals)
     norm_dis = min_max_normalize(dis_vals)
@@ -139,6 +139,7 @@ def compute_severity_scores(
             "Business_Impact_Score": round(bus_impacts[i], 4),
             "SIS_Raw": round(sis_vals[i], 6),
             "DIS_Raw": round(dis_vals[i], 6),
+            "DIS_Symmetric": round(dis_symmetric_vals[i], 6),
             "Confidence_Score": round(confidences[i], 4),
             "PSI_Interpretation": f"Population Share: {interpret_psi(e['psi'])}",
             "root_cause_score": round(root_cause_score, 6),

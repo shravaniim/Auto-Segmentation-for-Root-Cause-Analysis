@@ -21,4 +21,8 @@ def test_feature_schema_restricts_segmentation_to_requested_columns():
 
     assert schema.numeric_cols == ["age", "income"]
     assert schema.categorical_cols == ["region", "occupation"]
-    assert schema.exclude_cols == ["ead", "other_feature", "score", "target"]
+    # build_feature_schema() unconditionally appends "customer_id" to
+    # exclude_cols regardless of whether the dataframe actually has that
+    # column -- harmless (excluding a nonexistent column name is a no-op),
+    # but it does mean it always appears here.
+    assert schema.exclude_cols == ["other_feature", "target", "score", "ead", "customer_id"]

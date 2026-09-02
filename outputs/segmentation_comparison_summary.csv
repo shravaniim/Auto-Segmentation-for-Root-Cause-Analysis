@@ -1,6 +1,6 @@
 Technique,Top_Segment_Definition,Segments_Generated,Top_Segment_Pop_Pct,Top_Segment_Exp_Pct,Max_PSI,Max_Gini_Drop,Max_KS_Drop,Max_BR_Shift_Pct,Exposure_Drift,Calibration_Drift,Root_Cause_Feature,Root_Cause_Score,Business_Impact_Score,Top_Segment_EAD,Execution_Time_Sec,Deterministic,Explainability,Overall_Score_100,Severity_Rank
-Drift Localization Tree,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5,8,11.44,16.85,0.0947,0.4779,0.048,-57.98%,0.1282,-0.7532,age,0.9239,0.0237,"$217,252,800",1.8265,Yes,High,27.8,5
-K-Means Clustering,Cluster_4: region != South AND occupation != Business AND age < 29.5,8,27.4,40.17,0.241,0.471,0.1011,-56.57%,0.3081,-0.7351,age,0.6795,0.1387,"$517,872,657",13.8243,Yes*,Medium,60.4,2
-AutoSlicer,region = West,10,27.4,40.17,0.241,0.2606,0.2468,-56.57%,0.3081,-0.7351,age,0.6668,0.1387,"$517,872,657",8.574,Yes,Medium,44.7,3
-Feature Binning,region = West,14,27.4,40.17,0.241,0.3299,0.3904,-64.09%,0.3081,-2.3553,region,0.8035,0.4017,"$517,872,657",59.7983,Yes,High,83.0,1
-Gradient Boosting,income >= 3.798e+04 AND income < 5.001e+04 AND age < 28.5,10,11.44,16.85,0.1815,0.2861,0.0671,-62.33%,0.1282,-0.7532,age,0.7838,0.0237,"$217,252,800",2.8591,Yes,Medium,33.3,4
+Drift Localization Tree,"income >= 37,982 AND income < 50,007.5 AND age < 28.5",8,11.44,16.85,0.0947,0.4779,0.048,-57.98%,0.1282,-0.7532,age,0.9239,0.0237,"$217,252,800",0.7333,Yes,High,25.8,5
+K-Means Clustering,Cluster_4: region != South AND occupation != Business AND age < 29.5,8,27.4,40.17,0.241,0.471,0.1011,-56.57%,0.3081,-0.7351,age,0.6795,0.1387,"$517,872,657",12.5055,Yes*,Medium,58.6,2
+AutoSlicer,region = West,10,27.4,40.17,0.241,0.2134,0.2389,-56.57%,0.3081,-0.7351,age,0.6668,0.1387,"$517,872,657",5.0441,Yes,Medium,53.6,4
+Feature Binning,region = West,11,27.4,40.17,0.241,0.3299,0.3904,-56.57%,0.3081,-2.3553,region,0.8035,0.4017,"$517,872,657",32.1215,Yes,High,71.5,1
+Gradient Boosting,region != North AND occupation != Salaried AND age < 49.5,10,33.34,43.55,0.1301,0.8248,0.5406,-48.1%,0.248,-0.561,age,0.9963,0.2403,"$561,550,349",12.5303,Yes,Medium,58.0,3

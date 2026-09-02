@@ -141,13 +141,24 @@ def test_trend_metrics_always_recurring_beats_gapped_beats_one_off():
     # that Consistency (streak-based) is genuinely distinct from Frequency
     # (raw count), per the user's clarification that Consistency means
     # "does it stay for long, or does it go and reappear."
+    #
+    # sis/dis/psi/shap deliberately vary slightly (not tied) across A/B/C --
+    # Root_Cause_Score_Trend now boosts the *whole* blended score by
+    # persistence rather than just the SIS component (fixed after this
+    # formula let a technique's single most-severe one-off outrank a
+    # perfectly-recurring segment). That means a segment tied for the worst
+    # raw severity in its technique's pool normalizes to exactly 0 and stays
+    # 0 no matter the boost (0 x anything = 0) -- a real, exact tie across
+    # every metric essentially never happens in practice (confirmed against
+    # every real export this session), so this uses small, close-but-distinct
+    # values, same as real segments actually look like.
     periods = {}
     for m in range(1, 7):
-        rows = [_period_row("AutoSlicer", "A: always here", 10.0)]
+        rows = [_period_row("AutoSlicer", "A: always here", 10.0, sis=0.0110, dis=0.0055, psi=0.0520, shap=0.0310)]
         if m == 1:
-            rows.append(_period_row("AutoSlicer", "B: one-off", 8.0))
+            rows.append(_period_row("AutoSlicer", "B: one-off", 8.0, sis=0.0100, dis=0.0050, psi=0.0500, shap=0.0300))
         if m in (1, 2, 3, 5, 6):
-            rows.append(_period_row("AutoSlicer", "C: gap at month 4", 9.0))
+            rows.append(_period_row("AutoSlicer", "C: gap at month 4", 9.0, sis=0.0105, dis=0.0052, psi=0.0510, shap=0.0305))
         periods[f"2026_{m:02d}"] = pd.concat(rows, ignore_index=True)
 
     result = compute_trend_metrics(periods, TrendAnalysisConfig())

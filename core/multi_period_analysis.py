@@ -11,6 +11,7 @@ import math
 
 import numpy as np
 import pandas as pd
+from scipy import stats as scipy_stats
 
 from metrics.business_metrics import calculate_root_cause_score
 from metrics.significance import min_max_normalize
@@ -108,9 +109,10 @@ def build_segment_time_series(
     segment's *latest* month's raw numbers plus the derived trend score):
     this returns the full month-by-month raw metrics for every matched
     segment, one row per (Technique, Segment_Definition, Period), so a UI
-    can let someone pick a segment and see how Dev/Mon population %, AUC,
-    KS, bad rate, SIS, DIS and Root_Cause_Score actually moved release to
-    release -- not just the single trend-boosted summary number.
+    can let someone pick a segment and see how Dev/Mon population %,
+    exposure, AUC, KS, bad rate, SIS/DIS, SHAP shift and Root_Cause_Score
+    actually moved release to release -- not just the single trend-boosted
+    summary number.
 
     Uses the exact same "appeared in that technique's own worst-N" matching
     as compute_trend_metrics, so the segments covered here are identical to
@@ -123,7 +125,12 @@ def build_segment_time_series(
 
     metric_cols = [
         "Dev_Pct", "Mon_Pct", "Dev_AUC", "Mon_AUC", "Dev_KS", "Mon_KS",
-        "Dev_BR", "Mon_BR", "SIS_Raw", "DIS_Raw", "Root_Cause_Score",
+        "Dev_BR", "Mon_BR", "Delta_AUC", "Delta_Gini", "Delta_KS", "Delta_BR", "PSI",
+        "SIS_Raw", "DIS_Raw", "DIS_Symmetric", "Root_Cause_Score",
+        "Root_Cause_Feature", "Root_Cause_PSI",
+        "Dev_EAD", "Mon_EAD", "Dev_Exposure_Pct", "Mon_Exposure_Pct", "Exposure_Drift",
+        "Top_SHAP_Feature", "Top_SHAP_PSI", "mean_shap_shift",
+        "Business_Impact_Score", "Calibration_Drift",
     ]
     keep_cols = ["Technique", "Segment_Definition", "Period", "Period_Index"] + [
         c for c in metric_cols if c in long_df.columns
@@ -231,6 +238,9 @@ def compute_trend_metrics(
         # summary is chart-compatible, not just a handful of trend inputs.
         latest = grp.loc[grp["Period_Index"].idxmax()].to_dict()
         sis_raw = float(latest.get("SIS_Raw", 0.0) or 0.0)
+        # SIS_Trend is kept as its own informational column (SIS on its own,
+        # boosted by persistence) -- but it is NOT what feeds Root_Cause_Score_Trend
+        # below, to avoid double-counting the persistence boost (see there).
         sis_trend = sis_raw * (1.0 + cfg.trend_weight * tis)
 
         latest.update({
@@ -255,18 +265,34 @@ def compute_trend_metrics(
 
     result = pd.DataFrame(summary_rows)
 
-    # Root_Cause_Score_Trend / Severity_Score_Trend: same formula/weights as
-    # the single-period Root_Cause_Score, SIS_Trend substituted for SIS_Raw,
-    # renormalized within each technique's matched-segment set.
+    # Root_Cause_Score_Trend / Severity_Score_Trend: blend the same four
+    # RAW (unboosted) components the single-period Root_Cause_Score uses --
+    # SIS_Raw, not SIS_Trend -- then apply the persistence boost once, to
+    # the whole blended score, not just to the 35%-weighted SIS slice of it.
+    #
+    # Previously the boost only touched SIS_Trend before blending, so
+    # persistence could only ever move 35% of the final score -- a segment
+    # that recurred every month (Trend_Impact_Score=1.0, the max boost)
+    # could still be outranked by a technique's single most-severe one-off
+    # finding, since the other 65% of the score (DIS/PSI/SHAP) was never
+    # persistence-aware at all. Boosting the whole blend makes a perfectly
+    # recurring segment's score move by the full trend_weight, not 35% of it.
+    # Clipped at 1.0 since the boost can now push the blend above the
+    # normalized [0,1] range that Severity_Score_Trend's 0-20 scale assumes.
     out_parts = []
     for tech, grp in result.groupby("Technique"):
         grp = grp.copy()
-        norm_sis = min_max_normalize(grp["SIS_Trend"].values)
+        norm_sis = min_max_normalize(grp["SIS_Raw"].values)
         norm_dis = min_max_normalize(grp["DIS_Raw"].values)
         norm_psi = min_max_normalize(grp["mean_feature_psi"].values)
         norm_shap = min_max_normalize(grp["mean_shap_shift"].values)
-        grp["Root_Cause_Score_Trend"] = [
+        tis_values = grp["Trend_Impact_Score"].to_numpy(dtype=float)
+        base_scores = [
             calculate_root_cause_score(norm_sis[i], norm_dis[i], norm_psi[i], norm_shap[i])
+            for i in range(len(grp))
+        ]
+        grp["Root_Cause_Score_Trend"] = [
+            min(1.0, base_scores[i] * (1.0 + cfg.trend_weight * tis_values[i]))
             for i in range(len(grp))
         ]
         grp["Severity_Score_Trend"] = grp["Root_Cause_Score_Trend"] * 20.0
@@ -284,19 +310,32 @@ def forecast_segment_scores(
 ) -> pd.DataFrame:
     """
     Early-warning forecast: for each segment with >= 2 months of history in
-    time_series_df (from build_segment_time_series), fits a simple
-    least-squares line through (Period_Index, Root_Cause_Score) and
-    projects one month forward. This is a plain linear extrapolation, not a
-    statistical model -- it's meant to flag "worth watching," not to be a
-    precise prediction.
+    time_series_df (from build_segment_time_series), fits an ordinary
+    least-squares linear regression of Root_Cause_Score on Period_Index
+    (scipy.stats.linregress) and projects one period forward.
+
+    Reports the regression statistics alongside the point forecast, not just
+    the point forecast itself: R_Squared (goodness of fit), Trend_P_Value
+    (is the slope statistically distinguishable from zero), and a 95%
+    prediction interval on the forecast (Predicted_Next_Lower95/Upper95) --
+    so "this segment is trending worse" is a claim backed by a confidence
+    interval, not just an extrapolated line. With only 2 data points there
+    are 0 residual degrees of freedom, so no valid p-value or prediction
+    interval can be computed -- those segments still get a point forecast
+    (the regression line through 2 points is well-defined), just flagged
+    "Low (2 points)" confidence with R_Squared/Trend_P_Value/interval left
+    as NaN rather than reporting a false sense of precision.
 
     A segment is flagged (Early_Warning=True) when its trend is worsening
     (positive slope) and, projected forward, is on track to cross
-    cfg.forecast_alert_threshold within cfg.forecast_horizon_months.
+    cfg.forecast_alert_threshold within cfg.forecast_horizon_months -- same
+    flagging rule as before, so no previously-flagged segment silently
+    disappears now that more statistics are reported alongside it.
 
     Returns one row per forecastable segment: Technique, Segment_Definition,
     Periods_Used, Current_Root_Cause_Score, Predicted_Next_Root_Cause_Score,
-    Trend_Slope, Months_To_Breach, Confidence, Early_Warning.
+    Predicted_Next_Lower95, Predicted_Next_Upper95, Trend_Slope, R_Squared,
+    Trend_P_Value, Months_To_Breach, Confidence, Early_Warning.
     """
     cfg = cfg or TrendAnalysisConfig()
     if time_series_df.empty or "Root_Cause_Score" not in time_series_df.columns:
@@ -314,16 +353,47 @@ def forecast_segment_scores(
         if np.isnan(y).any():
             continue
 
-        slope, intercept = np.polyfit(x, y, deg=1)
+        fit = scipy_stats.linregress(x, y)
+        slope, intercept = fit.slope, fit.intercept
         last_idx = x.max()
+        next_x = last_idx + 1
         current_score = float(y[-1])
-        predicted_next = float(np.clip(slope * (last_idx + 1) + intercept, 0.0, 1.0))
+        predicted_next = float(np.clip(slope * next_x + intercept, 0.0, 1.0))
+
+        # 95% prediction interval for the forecast point -- only defined
+        # with >= 1 residual degree of freedom (n >= 3). With exactly 2
+        # points the line passes through both exactly (r_value = +-1),
+        # leaving no residual variance to estimate an interval from.
+        r_squared = float(fit.rvalue ** 2)
+        p_value = float(fit.pvalue)
+        lower95 = upper95 = np.nan
+        if n >= 3:
+            residuals = y - (slope * x + intercept)
+            dof = n - 2
+            resid_std_err = math.sqrt(np.sum(residuals ** 2) / dof)
+            mean_x = float(np.mean(x))
+            sxx = float(np.sum((x - mean_x) ** 2))
+            if sxx > 0:
+                se_pred = resid_std_err * math.sqrt(1.0 + 1.0 / n + (next_x - mean_x) ** 2 / sxx)
+                t_crit = scipy_stats.t.ppf(0.975, df=dof)
+                margin = t_crit * se_pred
+                lower95 = float(np.clip(predicted_next - margin, 0.0, 1.0))
+                upper95 = float(np.clip(predicted_next + margin, 0.0, 1.0))
+        else:
+            r_squared = np.nan
+            p_value = np.nan
 
         months_to_breach = None
         early_warning = False
         if slope > 0 and current_score < cfg.forecast_alert_threshold:
             raw_breach_idx = (cfg.forecast_alert_threshold - intercept) / slope
-            months_out = math.ceil(raw_breach_idx - last_idx)
+            # Round before ceil(): linregress's slope/intercept differ from
+            # np.polyfit's in the last few bits of floating-point precision
+            # (different underlying algorithms for the same OLS fit), which
+            # can push a case that lands exactly on an integer month boundary
+            # a hair over it (e.g. 1.0000000000000004), flipping ceil() to
+            # the next month up for what's really a whole-number answer.
+            months_out = math.ceil(round(raw_breach_idx - last_idx, 6))
             if 0 < months_out <= cfg.forecast_horizon_months:
                 months_to_breach = months_out
                 early_warning = True
@@ -337,7 +407,11 @@ def forecast_segment_scores(
             "Last_Appeared_Period": last_period,
             "Current_Root_Cause_Score": round(current_score, 4),
             "Predicted_Next_Root_Cause_Score": round(predicted_next, 4),
+            "Predicted_Next_Lower95": round(lower95, 4) if not np.isnan(lower95) else None,
+            "Predicted_Next_Upper95": round(upper95, 4) if not np.isnan(upper95) else None,
             "Trend_Slope": round(float(slope), 5),
+            "R_Squared": round(r_squared, 4) if not np.isnan(r_squared) else None,
+            "Trend_P_Value": round(p_value, 4) if not np.isnan(p_value) else None,
             "Months_To_Breach": months_to_breach,
             "Confidence": "Low (2 points)" if n == 2 else "Medium (3+ points)",
             "Early_Warning": early_warning,

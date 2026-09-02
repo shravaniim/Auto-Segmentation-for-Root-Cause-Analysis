@@ -152,10 +152,17 @@ def standardize_columns(df, tech_name):
         'Dev_KS': 'Dev_KS', 'ks_dev': 'Dev_KS',
         'Mon_KS': 'Mon_KS', 'ks_mon': 'Mon_KS',
         'Delta_KS': 'Delta_KS', 'delta_ks': 'Delta_KS',
+        # Score-shift p-value (K-Means renames this internally to
+        # Score_Shift_PValue before it reaches this map; the other 4
+        # techniques leave it lowercase -- unify onto the lowercase name
+        # so both land in the same column instead of two separate ones).
+        'Score_Shift_PValue': 'score_shift_pvalue',
         # Bad Rate
         'Dev_BR': 'Dev_BR', 'br_dev': 'Dev_BR',
         'Mon_BR': 'Mon_BR', 'br_mon': 'Mon_BR',
         'Delta_BR': 'Delta_BR', 'delta_br': 'Delta_BR',
+        # Bad-rate-shift p-value -- same K-Means renaming issue as above.
+        'BR_PValue': 'br_pvalue',
         # Population %
         'Dev_Pct': 'Dev_Pct', 'dev_pct': 'Dev_Pct',
         'Mon_Pct': 'Mon_Pct', 'mon_pct': 'Mon_Pct',

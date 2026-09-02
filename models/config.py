@@ -55,30 +55,6 @@ class SchemaConfig:
 
 
 # ============================================================================
-# Severity Scoring Weights
-# ============================================================================
-
-@dataclass
-class SeverityWeights:
-    """
-    Weights for the composite severity score.
-
-    The weights should sum to 1.0 for interpretability, although the
-    implementation does not enforce this.
-    """
-
-    w_psi: float = 0.25
-
-    w_business_impact: float = 0.25
-
-    w_gini_drop: float = 0.20
-
-    w_ks_drop: float = 0.15
-
-    w_br_shift: float = 0.15
-
-
-# ============================================================================
 # Candidate Filtering Thresholds
 # ============================================================================
 
@@ -153,20 +129,6 @@ class SlicerConfig:
     max_segment_pct: float = 0.35
 
     # ------------------------------------------------------------------------
-    # Severity weighting
-    # ------------------------------------------------------------------------
-
-    w_psi: float = 0.25
-
-    w_business_impact: float = 0.25
-
-    w_gini_drop: float = 0.20
-
-    w_ks_drop: float = 0.15
-
-    w_br_shift: float = 0.15
-
-    # ------------------------------------------------------------------------
     # De-duplication
     # ------------------------------------------------------------------------
 
@@ -224,20 +186,6 @@ class DLTConfig:
     significance_alpha: float = 0.05
 
     max_segment_pct: float = 0.35
-
-    # ------------------------------------------------------------------------
-    # Severity weighting
-    # ------------------------------------------------------------------------
-
-    w_psi: float = 0.25
-
-    w_business_impact: float = 0.25
-
-    w_gini_drop: float = 0.20
-
-    w_ks_drop: float = 0.15
-
-    w_br_shift: float = 0.15
 
 
 # ============================================================================
@@ -301,20 +249,6 @@ class GBConfig:
     significance_alpha: float = 0.05
 
     max_segment_pct: float = 0.35
-
-    # ------------------------------------------------------------------------
-    # Severity weighting
-    # ------------------------------------------------------------------------
-
-    w_psi: float = 0.25
-
-    w_business_impact: float = 0.25
-
-    w_gini_drop: float = 0.20
-
-    w_ks_drop: float = 0.15
-
-    w_br_shift: float = 0.15
 
     # ------------------------------------------------------------------------
     # De-duplication
@@ -389,20 +323,6 @@ class KMeansConfig:
 
     max_segment_pct: float = 0.35
 
-    # ------------------------------------------------------------------------
-    # Severity weighting
-    # ------------------------------------------------------------------------
-
-    w_psi: float = 0.25
-
-    w_business_impact: float = 0.25
-
-    w_gini_drop: float = 0.20
-
-    w_ks_drop: float = 0.15
-
-    w_br_shift: float = 0.15
-
 
 # ============================================================================
 # Feature Binning Configuration
@@ -454,16 +374,6 @@ class FeatureBinningConfig:
     n_iter: int = 50
 
     alpha: float = 0.10
-
-    # ------------------------------------------------------------------------
-    # Interactions
-    # ------------------------------------------------------------------------
-
-    include_interactions: bool = True
-
-    max_interaction_features: int = 8
-
-    max_interaction_pairs: int = 15
 
 
 # ============================================================================

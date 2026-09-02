@@ -30,7 +30,7 @@
   <path class="edge" d="M500,112 L500,132"/>
   <rect class="box" x="330" y="134" width="340" height="60"/>
   <text x="500" y="157" text-anchor="middle" class="title">Feature Schema Guard</text>
-  <text x="500" y="176" text-anchor="middle" class="sub">keeps age/income/region/occupation, excludes target/score/ead/shap_*</text>
+  <text x="500" y="176" text-anchor="middle" class="sub">demo dataset → fixed schema; your own CSV → auto-detected</text>
 
   <path class="edge" d="M500,194 L500,212"/>
 

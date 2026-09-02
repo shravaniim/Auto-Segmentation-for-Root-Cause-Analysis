@@ -152,14 +152,13 @@
 <header>
   <p class="eyebrow">Architecture Reference — Auto-Segmentation for Root Cause Analysis</p>
   <h1>How the engine turns raw monitoring data into a ranked root-cause report</h1>
-  <p class="lede">Two views of the same pipeline: the business-level flow, and the mechanics underneath each step. Prepared for presentation.</p>
+  <p class="lede">One pipeline, one decision: run trend analysis or not. Prepared for presentation.</p>
 </header>
 
 <section>
-  <h2>1 — High-level flow</h2>
-  <p class="section-lede">Five segmentation techniques discover candidate segments independently; every candidate is scored the same way and merged into one ranked report. Optionally (Tab 2's Trend Analysis toggle), the same pipeline repeats once per monitoring month, adding recurrence scoring, early-warning forecasting, and a Q&amp;A assistant.</p>
+  <p class="section-lede">Everything starts with one choice on Tab 2 — analyze a single monitoring month, or track segments across several. Both paths run the same five segmentation techniques and land in the same scoring, ranking, and results pipeline.</p>
   <figure>
-<svg viewBox="0 0 1680 1010" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data are evaluated by five segmentation techniques in parallel; each candidate segment is scored for drift, performance and business impact, then merged into one cross-technique ranked report. Optionally, the same pipeline repeats once per month for trend analysis, adding recurrence scoring, early-warning forecasting, and a Q&amp;A assistant.">
+<svg viewBox="0 0 900 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Development and monitoring data feed a single decision: run trend analysis or not. No runs all five segmentation techniques once against one monitoring snapshot. Yes runs the same five techniques once per month and additionally flags segments that keep recurring. Both paths then join the same scoring, ranking, and results pipeline.">
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
@@ -167,394 +166,73 @@
   </defs>
 
   <style>
-    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
-    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
-    .accent2 { fill:#eff6ff; stroke:#2563eb; stroke-width:2; rx:8; }
-    .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
-    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
-    .titleAccent2 { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1e3a8a; }
-    .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
-    .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow); }
-    .edgeDash { stroke:#64748b; stroke-width:1.5; fill:none; marker-end:url(#arrow); stroke-dasharray:5,4; }
-    .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; fill:#475569; }
-    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:20px; font-weight:700; fill:#0f172a; }
-    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12.5px; fill:#475569; }
-    .sectionLabel { font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:700; fill:#1e3a8a; }
+    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:10; }
+    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:10; }
+    .decision { fill:#eff6ff; stroke:#2563eb; stroke-width:2; }
+    .title { font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:700; fill:#0f172a; }
+    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:15px; font-weight:700; fill:#14532d; }
+    .titleDecision { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1e3a8a; }
+    .sub { font-family:Arial,Helvetica,sans-serif; font-size:12px; fill:#334155; }
+    .edge { stroke:#334155; stroke-width:1.6; fill:none; marker-end:url(#arrow); }
+    .edgelabel { font-family:Arial,Helvetica,sans-serif; font-size:12px; font-weight:700; fill:#334155; }
+    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:21px; font-weight:700; fill:#0f172a; }
+    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:13px; fill:#475569; }
   </style>
 
-  <text x="840" y="28" text-anchor="middle" class="h1">Auto-Segmentation for Root Cause Analysis — High-Level Flow</text>
-  <text x="840" y="47" text-anchor="middle" class="h2">Five techniques discover candidate segments in parallel; every candidate is scored the same way and merged into one ranked report.</text>
+  <text x="450" y="30" text-anchor="middle" class="h1">Auto-Segmentation — High-Level Flow</text>
+  <text x="450" y="50" text-anchor="middle" class="h2">One pipeline, two modes — a single monitoring snapshot, or a trend across several months.</text>
 
-  <!-- ================= ROW 1: CLASSIC (single period) ================= -->
+  <!-- Box 1: Data -->
+  <rect class="box" x="300" y="70" width="300" height="64"/>
+  <text x="450" y="96" text-anchor="middle" class="title">Development + Monitoring Data</text>
+  <text x="450" y="116" text-anchor="middle" class="sub">Built-in demo dataset, or your own upload</text>
 
-  <rect class="box" x="40" y="180" width="180" height="66"/>
-  <text x="130" y="203" text-anchor="middle" class="title">Development Data</text>
-  <text x="130" y="220" text-anchor="middle" class="sub">age, income, region,</text>
-  <text x="130" y="232" text-anchor="middle" class="sub">occupation, target, score, ead</text>
+  <path class="edge" d="M450,134 L450,160"/>
 
-  <rect class="box" x="40" y="260" width="180" height="66"/>
-  <text x="130" y="283" text-anchor="middle" class="title">Monitoring Data</text>
-  <text x="130" y="300" text-anchor="middle" class="sub">1 file (classic), or N monthly</text>
-  <text x="130" y="312" text-anchor="middle" class="sub">files if Trend Analysis = Yes</text>
+  <!-- Decision diamond -->
+  <polygon class="decision" points="320,215 450,158 580,215 450,272"/>
+  <text x="450" y="211" text-anchor="middle" class="titleDecision">Run Trend Analysis?</text>
+  <text x="450" y="228" text-anchor="middle" class="sub">Tab 2 toggle</text>
 
-  <path class="edge" d="M220,208 L268,238"/>
-  <path class="edge" d="M220,288 L268,278"/>
+  <path class="edge" d="M320,215 L235,320"/>
+  <text x="245" y="270" class="edgelabel">No</text>
 
-  <rect class="box" x="270" y="204" width="200" height="112"/>
-  <text x="370" y="228" text-anchor="middle" class="title">Feature Schema Guard</text>
-  <text x="370" y="247" text-anchor="middle" class="sub">keeps: age, income,</text>
-  <text x="370" y="260" text-anchor="middle" class="sub">region, occupation</text>
-  <text x="370" y="279" text-anchor="middle" class="sub">excludes: target, score, ead,</text>
-  <text x="370" y="292" text-anchor="middle" class="sub">shap_*, customer_id</text>
-  <text x="370" y="311" text-anchor="middle" class="sub" font-style="italic">(no label leakage into segments)</text>
+  <path class="edge" d="M580,215 L665,320"/>
+  <text x="620" y="270" class="edgelabel">Yes</text>
 
-  <rect class="box" x="520" y="76" width="230" height="56"/>
-  <text x="635" y="100" text-anchor="middle" class="title">AutoSlicer</text>
-  <text x="635" y="117" text-anchor="middle" class="sub">beam-search rule combos</text>
+  <!-- Branch: No -->
+  <rect class="box" x="60" y="322" width="340" height="92"/>
+  <text x="230" y="348" text-anchor="middle" class="title">Single-Month Analysis</text>
+  <text x="230" y="370" text-anchor="middle" class="sub">Run all 5 techniques once against</text>
+  <text x="230" y="388" text-anchor="middle" class="sub">one monitoring snapshot</text>
 
-  <rect class="box" x="520" y="154" width="230" height="56"/>
-  <text x="635" y="178" text-anchor="middle" class="title">Feature Binning</text>
-  <text x="635" y="195" text-anchor="middle" class="sub">per-feature bins</text>
+  <!-- Branch: Yes -->
+  <rect class="box" x="500" y="322" width="340" height="92"/>
+  <text x="670" y="348" text-anchor="middle" class="title">Multi-Month Trend Analysis</text>
+  <text x="670" y="370" text-anchor="middle" class="sub">Run the same 5 techniques once per month,</text>
+  <text x="670" y="388" text-anchor="middle" class="sub">then flag segments that keep recurring</text>
 
-  <rect class="box" x="520" y="232" width="230" height="56"/>
-  <text x="635" y="256" text-anchor="middle" class="title">Decision Tree (GBDT)</text>
-  <text x="635" y="273" text-anchor="middle" class="sub">gradient-boosted leaves</text>
+  <!-- Converge -->
+  <path class="edge" d="M230,414 L230,440 L440,440 L440,462"/>
+  <path class="edge" d="M670,414 L670,440 L460,440 L460,462"/>
 
-  <rect class="box" x="520" y="310" width="230" height="56"/>
-  <text x="635" y="334" text-anchor="middle" class="title">Clustering (K-Means)</text>
-  <text x="635" y="351" text-anchor="middle" class="sub">drift-aware clusters</text>
+  <!-- Box: Rank & Score -->
+  <rect class="box" x="270" y="464" width="360" height="80"/>
+  <text x="450" y="492" text-anchor="middle" class="title">Score &amp; Rank Every Segment</text>
+  <text x="450" y="513" text-anchor="middle" class="sub">Same formulas for every technique — merged into one ranked list</text>
 
-  <rect class="box" x="520" y="388" width="230" height="56"/>
-  <text x="635" y="412" text-anchor="middle" class="title">Drift Localization Tree</text>
-  <text x="635" y="429" text-anchor="middle" class="sub">dev-vs-mon split tree</text>
+  <path class="edge" d="M450,544 L450,570"/>
 
-  <path class="edge" d="M470,260 L500,104 L518,104"/>
-  <path class="edge" d="M470,260 L500,182 L518,182"/>
-  <path class="edge" d="M470,260 L518,260"/>
-  <path class="edge" d="M470,260 L500,338 L518,338"/>
-  <path class="edge" d="M470,260 L500,416 L518,416"/>
-  <text x="480" y="252" class="edgelabel">run in</text>
-  <text x="480" y="264" class="edgelabel">parallel</text>
-
-  <path class="edge" d="M750,104 L800,104 L800,235 L818,235"/>
-  <path class="edge" d="M750,182 L800,182 L800,248 L818,248"/>
-  <path class="edge" d="M750,260 L818,260"/>
-  <path class="edge" d="M750,338 L800,338 L800,272 L818,272"/>
-  <path class="edge" d="M750,416 L800,416 L800,285 L818,285"/>
-
-  <rect class="box" x="820" y="208" width="260" height="104"/>
-  <text x="950" y="232" text-anchor="middle" class="title">Segment Metrics &amp; Impact Scoring</text>
-  <text x="950" y="251" text-anchor="middle" class="sub">PSI · ΔAUC/Gini/KS · Bad Rate</text>
-  <text x="950" y="266" text-anchor="middle" class="sub">Calibration · Exposure · SHAP</text>
-  <text x="950" y="285" text-anchor="middle" class="sub" font-weight="700">→ SIS · DIS · Root Cause Score</text>
-  <text x="950" y="302" text-anchor="middle" class="sub" font-style="italic">+ heatmap/bubble/waterfall per technique (Tab 1)</text>
-
-  <path class="edge" d="M1080,260 L1138,260"/>
-  <text x="1088" y="252" class="edgelabel">10 worst per</text>
-  <text x="1088" y="276" class="edgelabel">technique</text>
-
-  <rect class="box" x="1140" y="208" width="230" height="104"/>
-  <text x="1255" y="232" text-anchor="middle" class="title">Cross-Technique Ranking</text>
-  <text x="1255" y="251" text-anchor="middle" class="sub">normalize Root Cause Score</text>
-  <text x="1255" y="266" text-anchor="middle" class="sub">across all 5 techniques' pools</text>
-  <text x="1255" y="285" text-anchor="middle" class="sub" font-weight="700">→ Top 10 Root Causes + 10×5 table (Tab 2)</text>
-
-  <path class="edge" d="M1370,260 L1418,260"/>
-  <text x="1378" y="252" class="edgelabel">renders</text>
-
-  <rect class="accent" x="1420" y="208" width="220" height="104"/>
-  <text x="1530" y="232" text-anchor="middle" class="titleAccent">Executive Insights</text>
-  <text x="1530" y="251" text-anchor="middle" class="sub">heatmap · bubble · waterfall</text>
-  <text x="1530" y="266" text-anchor="middle" class="sub">executive summary</text>
-  <text x="1530" y="285" text-anchor="middle" class="sub">AI narrative (Tab 1 / Tab 3)</text>
-
-  <!-- ================= BRANCH LABEL ================= -->
-
-  <path class="edge" d="M130,326 L130,470 L60,470"/>
-  <rect class="accent2" x="60" y="472" width="270" height="48"/>
-  <text x="195" y="491" text-anchor="middle" class="titleAccent2" font-size="12">Trend Analysis = Yes (Tab 2 toggle)</text>
-  <text x="195" y="507" text-anchor="middle" class="sub">user supplies N monthly files instead of 1</text>
-
-  <path class="edge" d="M195,520 L195,556"/>
-
-  <!-- ================= ROW 2: TREND ANALYSIS ADD-ON ================= -->
-
-  <text x="840" y="548" text-anchor="middle" class="sectionLabel">Trend Analysis (add-on) — repeats the pipeline above once per month, then compares across months</text>
-
-  <rect class="box" x="60" y="566" width="230" height="80"/>
-  <text x="175" y="588" text-anchor="middle" class="title">Loop Over N Months</text>
-  <text x="175" y="605" text-anchor="middle" class="sub">runs everything in Row 1 once per</text>
-  <text x="175" y="618" text-anchor="middle" class="sub">dev + monₙ pair (same 5 techniques,</text>
-  <text x="175" y="631" text-anchor="middle" class="sub">same scoring, unchanged)</text>
-
-  <path class="edge" d="M290,606 L318,606"/>
-
-  <rect class="box" x="320" y="566" width="230" height="80"/>
-  <text x="435" y="588" text-anchor="middle" class="title">Match Segments Across Months</text>
-  <text x="435" y="605" text-anchor="middle" class="sub">same technique + same rule text</text>
-  <text x="435" y="618" text-anchor="middle" class="sub">= one recurring segment group</text>
-
-  <path class="edge" d="M550,606 L578,606"/>
-
-  <rect class="box" x="580" y="566" width="240" height="80"/>
-  <text x="700" y="588" text-anchor="middle" class="title">Level 1: Recurrence Metrics</text>
-  <text x="700" y="605" text-anchor="middle" class="sub">Frequency · Recency Factor</text>
-  <text x="700" y="618" text-anchor="middle" class="sub">Consistency Score</text>
-  <text x="700" y="633" text-anchor="middle" class="sub" font-style="italic">how often / how recent / how continuous</text>
-
-  <path class="edge" d="M820,606 L848,606"/>
-
-  <rect class="box" x="850" y="566" width="220" height="80"/>
-  <text x="960" y="588" text-anchor="middle" class="title">Level 2: Trend Impact Score</text>
-  <text x="960" y="608" text-anchor="middle" class="sub" font-weight="700">blends Frequency + Recency +</text>
-  <text x="960" y="621" text-anchor="middle" class="sub" font-weight="700">Consistency into one score</text>
-
-  <path class="edge" d="M1070,606 L1098,606"/>
-
-  <rect class="box" x="1100" y="566" width="250" height="80"/>
-  <text x="1225" y="588" text-anchor="middle" class="title">SIS Boost → Root Cause Score</text>
-  <text x="1225" y="605" text-anchor="middle" class="sub">recurring/worsening segments get a</text>
-  <text x="1225" y="618" text-anchor="middle" class="sub">boosted SIS, Root Cause Score recomputed</text>
-
-  <path class="edge" d="M1350,606 L1378,606"/>
-
-  <rect class="box" x="1380" y="566" width="240" height="80"/>
-  <text x="1500" y="588" text-anchor="middle" class="title">Cross-Technique Trend Ranking</text>
-  <text x="1500" y="605" text-anchor="middle" class="sub">same idea as Cross-Technique</text>
-  <text x="1500" y="618" text-anchor="middle" class="sub">Ranking above, trend-boosted</text>
-
-  <!-- outputs of trend row -->
-  <path class="edge" d="M1500,646 L1500,672 L1220,672 L1220,700"/>
-  <path class="edge" d="M1500,646 L1500,700"/>
-
-  <rect class="accent" x="1080" y="702" width="260" height="90"/>
-  <text x="1210" y="726" text-anchor="middle" class="titleAccent">Trend Executive Insights</text>
-  <text x="1210" y="745" text-anchor="middle" class="sub">recurrence table · heatmap · bubble</text>
-  <text x="1210" y="758" text-anchor="middle" class="sub">waterfall · metric time series (Tab 2/3)</text>
-
-  <rect class="accent" x="1360" y="702" width="260" height="90"/>
-  <text x="1490" y="726" text-anchor="middle" class="titleAccent">🔮 Early Warning Forecast</text>
-  <text x="1490" y="745" text-anchor="middle" class="sub">projects each segment's score forward,</text>
-  <text x="1490" y="758" text-anchor="middle" class="sub">flags ones headed for the alert threshold</text>
-
-  <!-- ================= Q&A ASSISTANT (shared) ================= -->
-
-  <path class="edge" d="M1530,312 L1530,470 L960,470 L960,838"/>
-  <path class="edge" d="M1210,792 L1080,838"/>
-  <path class="edge" d="M1490,792 L1200,838"/>
-
-  <rect class="accent2" x="480" y="840" width="720" height="90"/>
-  <text x="840" y="864" text-anchor="middle" class="titleAccent2">💬 Ask About These Results (Q&amp;A Assistant)</text>
-  <text x="840" y="883" text-anchor="middle" class="sub">reads whichever results currently exist — classic and/or trend —</text>
-  <text x="840" y="896" text-anchor="middle" class="sub">and answers free-form questions grounded in those actual numbers</text>
-
-  <text x="840" y="970" text-anchor="middle" class="sub" font-style="italic">If Trend Analysis = No: only Row 1 runs, output is Executive Insights + Q&amp;A, exactly as before this feature existed.</text>
+  <!-- Box: Results -->
+  <rect class="accent" x="240" y="572" width="420" height="106"/>
+  <text x="450" y="600" text-anchor="middle" class="titleAccent">📊 Results</text>
+  <text x="450" y="623" text-anchor="middle" class="sub">Ranked segments, charts, executive summary</text>
+  <text x="450" y="642" text-anchor="middle" class="sub">Early-warning forecast (trend mode) · Q&amp;A assistant</text>
 </svg>
-    <figcaption>Development and monitoring data are restricted to leakage-safe features before any technique sees them. Five techniques run in parallel, each producing scored candidate segments, which converge into one cross-technique ranking and the executive dashboard. When Trend Analysis is enabled, this whole flow repeats once per monitoring month; segments that recur are matched across months, scored for how often/recently/continuously they appeared, and that recurrence signal boosts their Root Cause Score. A linear forecast then flags segments projected to cross a danger threshold soon, and a Q&amp;A assistant can answer free-form questions about whichever results — classic or trend — are currently on screen.</figcaption>
+    <figcaption>Both paths run the same five techniques and the same scoring formulas -- the only difference is whether it runs once, or once per month with recurrence tracking added on top.</figcaption>
   </figure>
-</section>
-
-<section>
-  <h2>2 — Low-level pipeline</h2>
-  <p class="section-lede">Every technique runs the same six-step contract. The one place that needs care is the hand-off between technique-level and cross-technique ranking. The lower half of this diagram shows what's added when Trend Analysis is enabled, with the exact formulas at each step.</p>
-  <figure>
-<svg viewBox="0 0 1000 1900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Five techniques differ only in how they generate candidate segments. Every candidate then passes through the same evaluation, filtering, deduplication, scoring, and ranking pipeline, so differences in the final output come from the technique's discovery method, not inconsistent metric implementations. Optionally, this whole pipeline repeats once per monitoring month for trend analysis, adding recurrence scoring, a boosted root cause score, early-warning forecasting, and a Q&amp;A assistant.">
-  <defs>
-    <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
-    </marker>
-  </defs>
-  <style>
-    .box { fill:#f8fafc; stroke:#334155; stroke-width:1.5; rx:8; }
-    .accent { fill:#ecfdf5; stroke:#16a34a; stroke-width:2; rx:8; }
-    .accent2 { fill:#eff6ff; stroke:#2563eb; stroke-width:2; rx:8; }
-    .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#0f172a; }
-    .titleAccent { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#14532d; }
-    .titleAccent2 { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1e3a8a; }
-    .sub { font-family:Arial,Helvetica,sans-serif; font-size:11px; fill:#334155; }
-    .small { font-family:Arial,Helvetica,sans-serif; font-size:10.5px; font-weight:700; fill:#0f172a; }
-    .edge { stroke:#334155; stroke-width:1.5; fill:none; marker-end:url(#arrow3); }
-    .edgeDash { stroke:#64748b; stroke-width:1.5; fill:none; marker-end:url(#arrow3); stroke-dasharray:5,4; }
-    .h1 { font-family:Arial,Helvetica,sans-serif; font-size:19px; font-weight:700; fill:#0f172a; }
-    .h2 { font-family:Arial,Helvetica,sans-serif; font-size:12px; fill:#475569; }
-    .sectionLabel { font-family:Arial,Helvetica,sans-serif; font-size:13px; font-weight:700; fill:#1e3a8a; }
-    .formula { font-family:"Courier New",Consolas,monospace; font-size:10.5px; fill:#0f172a; }
-  </style>
-
-  <text x="500" y="28" text-anchor="middle" class="h1">Low-Level Pipeline — One Contract After Discovery</text>
-  <text x="500" y="47" text-anchor="middle" class="h2">Techniques differ only in how they find candidates. Everything after is identical code, for all five.</text>
-
-  <rect class="box" x="350" y="66" width="300" height="46"/>
-  <text x="500" y="94" text-anchor="middle" class="title">Development + Monitoring Data</text>
-
-  <path class="edge" d="M500,112 L500,132"/>
-  <rect class="box" x="330" y="134" width="340" height="60"/>
-  <text x="500" y="157" text-anchor="middle" class="title">Feature Schema Guard</text>
-  <text x="500" y="176" text-anchor="middle" class="sub">keeps age/income/region/occupation, excludes target/score/ead/shap_*</text>
-
-  <path class="edge" d="M500,194 L500,212"/>
-
-  <!-- 5 technique boxes: candidate generation only -->
-  <rect class="box" x="45" y="214" width="170" height="66"/>
-  <text x="130" y="240" text-anchor="middle" class="small">AutoSlicer</text>
-  <text x="130" y="256" text-anchor="middle" class="sub">beam search</text>
-
-  <rect class="box" x="225" y="214" width="170" height="66"/>
-  <text x="310" y="240" text-anchor="middle" class="small">Feature Binning</text>
-  <text x="310" y="256" text-anchor="middle" class="sub">per-feature bins</text>
-
-  <rect class="box" x="405" y="214" width="170" height="66"/>
-  <text x="490" y="240" text-anchor="middle" class="small">Decision Tree</text>
-  <text x="490" y="256" text-anchor="middle" class="sub">GBDT leaves</text>
-
-  <rect class="box" x="585" y="214" width="170" height="66"/>
-  <text x="670" y="240" text-anchor="middle" class="small">Clustering</text>
-  <text x="670" y="256" text-anchor="middle" class="sub">K-Means</text>
-
-  <rect class="box" x="765" y="214" width="190" height="66"/>
-  <text x="860" y="240" text-anchor="middle" class="small">Drift Localization</text>
-  <text x="860" y="256" text-anchor="middle" class="sub">dev-vs-mon tree</text>
-
-  <text x="500" y="298" text-anchor="middle" class="sub" font-style="italic">each returns: segment rule + dev_mask + mon_mask</text>
-
-  <path class="edge" d="M130,280 L130,300 L500,300 L500,318"/>
-  <path class="edge" d="M310,280 L310,300 L500,300 L500,318"/>
-  <path class="edge" d="M490,280 L500,318"/>
-  <path class="edge" d="M670,280 L670,300 L500,300 L500,318"/>
-  <path class="edge" d="M860,280 L860,300 L500,300 L500,318"/>
-
-  <rect class="box" x="290" y="320" width="420" height="56"/>
-  <text x="500" y="353" text-anchor="middle" class="title">Common Candidate Contract</text>
-
-  <path class="edge" d="M500,376 L500,394"/>
-  <rect class="box" x="230" y="396" width="540" height="94"/>
-  <text x="500" y="420" text-anchor="middle" class="title">Common Evaluation</text>
-  <text x="500" y="440" text-anchor="middle" class="sub">Population % · Exposure % · AUC · Gini · KS · Bad Rate</text>
-  <text x="500" y="456" text-anchor="middle" class="sub">Calibration · PSI · SHAP Shift · Feature Drift</text>
-  <text x="500" y="476" text-anchor="middle" class="sub" font-style="italic">same formulas, same code, every technique</text>
-
-  <path class="edge" d="M500,490 L500,508"/>
-  <rect class="box" x="290" y="510" width="420" height="56"/>
-  <text x="500" y="543" text-anchor="middle" class="title">Common Filtering + Deduplication</text>
-
-  <path class="edge" d="M500,566 L500,584"/>
-  <rect class="box" x="270" y="586" width="460" height="94"/>
-  <text x="500" y="610" text-anchor="middle" class="title">Common Scoring</text>
-  <text x="500" y="632" text-anchor="middle" class="sub">SIS · DIS · Root Cause Score</text>
-  <text x="500" y="650" text-anchor="middle" class="sub" font-weight="700">Severity Score (technique-local ranking)</text>
-  <text x="500" y="668" text-anchor="middle" class="sub" font-style="italic">same weighted formula, every technique</text>
-
-  <path class="edge" d="M500,680 L500,698"/>
-  <rect class="box" x="350" y="700" width="300" height="54"/>
-  <text x="500" y="732" text-anchor="middle" class="title">Technique Top-N</text>
-
-  <path class="edgeDash" d="M650,727 L760,727 L760,942"/>
-  <text x="770" y="723" class="sub" font-style="italic">if Trend Analysis = Yes,</text>
-  <text x="770" y="736" class="sub" font-style="italic">this result (for each of</text>
-  <text x="770" y="749" class="sub" font-style="italic">N months) also feeds ↓</text>
-
-  <path class="edge" d="M500,754 L500,772"/>
-  <rect class="accent" x="330" y="774" width="340" height="66"/>
-  <text x="500" y="800" text-anchor="middle" class="titleAccent">Cross-Technique Ranking</text>
-  <text x="500" y="820" text-anchor="middle" class="sub">by Root Cause Score, not raw Severity Score</text>
-
-  <text x="500" y="870" text-anchor="middle" class="sub" font-style="italic">Severity Score ranks within one technique's own pool; Root Cause</text>
-  <text x="500" y="886" text-anchor="middle" class="sub" font-style="italic">Score is normalized the same way for every technique, so only it</text>
-  <text x="500" y="902" text-anchor="middle" class="sub" font-style="italic">is safe to compare across techniques.</text>
-
-  <!-- ================= TREND ANALYSIS CONTINUATION ================= -->
-
-  <text x="500" y="944" text-anchor="middle" class="sectionLabel">Trend Analysis (add-on) — everything above repeats once per monitoring month, then this compares across months</text>
-
-  <rect class="accent2" x="270" y="958" width="460" height="50"/>
-  <text x="500" y="978" text-anchor="middle" class="titleAccent2" font-size="12">N × Technique Top-N (one set per month)</text>
-  <text x="500" y="994" text-anchor="middle" class="sub">dev + mon₁, dev + mon₂, ... dev + monₙ</text>
-
-  <path class="edge" d="M500,1008 L500,1026"/>
-  <rect class="box" x="270" y="1028" width="460" height="64"/>
-  <text x="500" y="1052" text-anchor="middle" class="title">Match Segments Across Months</text>
-  <text x="500" y="1070" text-anchor="middle" class="sub">same Technique + same Segment_Definition text</text>
-  <text x="500" y="1084" text-anchor="middle" class="sub">= one recurring group (core/multi_period_analysis.py)</text>
-
-  <path class="edge" d="M500,1092 L500,1110"/>
-  <rect class="box" x="230" y="1112" width="540" height="112"/>
-  <text x="500" y="1134" text-anchor="middle" class="title">Level 1: Recurrence Metrics</text>
-  <text x="500" y="1155" text-anchor="middle" class="formula">Frequency = periods_appeared / total_periods</text>
-  <text x="500" y="1172" text-anchor="middle" class="formula">Recency_Factor = 0.5 ^ (periods_since_last / 2)</text>
-  <text x="500" y="1189" text-anchor="middle" class="formula">Consistency_Score = longest_unbroken_streak / total_periods</text>
-  <text x="500" y="1210" text-anchor="middle" class="sub" font-style="italic">how often / how recent / how continuous — three separate signals</text>
-
-  <path class="edge" d="M500,1224 L500,1242"/>
-  <rect class="box" x="270" y="1244" width="460" height="66"/>
-  <text x="500" y="1266" text-anchor="middle" class="title">Level 2: Trend Impact Score (TIS)</text>
-  <text x="500" y="1288" text-anchor="middle" class="formula">TIS = 0.4·Frequency + 0.3·Recency_Factor + 0.3·Consistency_Score</text>
-
-  <path class="edge" d="M500,1310 L500,1328"/>
-  <rect class="box" x="270" y="1330" width="460" height="66"/>
-  <text x="500" y="1352" text-anchor="middle" class="title">SIS Boost</text>
-  <text x="500" y="1373" text-anchor="middle" class="formula">SIS_Trend = SIS_Raw × (1 + 0.5 × TIS)</text>
-  <text x="500" y="1388" text-anchor="middle" class="sub" font-style="italic">TIS = 0 → SIS_Trend = SIS_Raw, unchanged</text>
-
-  <path class="edge" d="M500,1396 L500,1414"/>
-  <rect class="box" x="210" y="1416" width="580" height="94"/>
-  <text x="500" y="1438" text-anchor="middle" class="title">Recompute Root Cause Score</text>
-  <text x="500" y="1459" text-anchor="middle" class="formula">Root_Cause_Score_Trend = 0.35·norm(SIS_Trend) + 0.30·norm(DIS)</text>
-  <text x="500" y="1474" text-anchor="middle" class="formula">+ 0.20·norm(PSI) + 0.15·norm(SHAP-shift)</text>
-  <text x="500" y="1491" text-anchor="middle" class="sub" font-style="italic">Severity_Score_Trend = Root_Cause_Score_Trend × 20, renormalized per technique</text>
-
-  <path class="edge" d="M500,1510 L500,1528"/>
-  <rect class="accent" x="330" y="1530" width="340" height="66"/>
-  <text x="500" y="1556" text-anchor="middle" class="titleAccent">Cross-Technique Trend Ranking</text>
-  <text x="500" y="1576" text-anchor="middle" class="sub">same idea as Cross-Technique Ranking above, trend-boosted</text>
-
-  <path class="edge" d="M500,1596 L500,1608 L280,1608 L280,1626"/>
-  <path class="edge" d="M500,1596 L500,1608 L720,1608 L720,1626"/>
-
-  <rect class="accent" x="150" y="1628" width="260" height="80"/>
-  <text x="280" y="1650" text-anchor="middle" class="titleAccent" font-size="12">🔮 Early Warning Forecast</text>
-  <text x="280" y="1670" text-anchor="middle" class="formula" font-size="9.5">slope,intercept = polyfit(period, RCS)</text>
-  <text x="280" y="1684" text-anchor="middle" class="sub">flag if projected to cross threshold soon</text>
-
-  <rect class="accent" x="590" y="1628" width="260" height="80"/>
-  <text x="720" y="1650" text-anchor="middle" class="titleAccent" font-size="12">Trend Executive Insights</text>
-  <text x="720" y="1670" text-anchor="middle" class="sub">recurrence table · charts · metric</text>
-  <text x="720" y="1684" text-anchor="middle" class="sub">time series (Tab 2 / Tab 3)</text>
-
-  <path class="edge" d="M280,1708 L280,1730 L410,1730"/>
-  <path class="edge" d="M720,1708 L720,1730 L590,1730"/>
-
-  <rect class="accent2" x="290" y="1732" width="420" height="60"/>
-  <text x="500" y="1756" text-anchor="middle" class="titleAccent2" font-size="12">💬 Ask About These Results (Q&amp;A Assistant)</text>
-  <text x="500" y="1774" text-anchor="middle" class="sub">answers free-form questions using whichever results exist</text>
-
-  <text x="500" y="1830" text-anchor="middle" class="sub" font-style="italic">If Trend Analysis = No: nothing below "Technique Top-N" on this page runs; output stops</text>
-  <text x="500" y="1846" text-anchor="middle" class="sub" font-style="italic">at Cross-Technique Ranking above, exactly as before this feature existed.</text>
-</svg>
-    <figcaption>Each technique's own Top-N is ranked by its own Severity Score — fine within one technique, but Feature Binning's Severity Score sits on a ~0–1 scale while the other four sit on ~0–20. The cross-technique step re-ranks by Normalized Root Cause Score instead, which uses one formula and comparable inputs across all five techniques. In trend mode, each technique's per-month Top-N (not the classic Cross-Technique Ranking) feeds a separate matching step: segments are grouped by identical rule text across months, scored on Frequency/Recency/Consistency, blended into a Trend Impact Score, and that score boosts SIS before Root Cause Score is recomputed — producing its own Cross-Technique Trend Ranking, independent of the classic one above it.</figcaption>
-  </figure>
-</section>
-
-<section>
-  <h2>Key terms</h2>
-  <p class="section-lede">The metrics referenced above, defined once.</p>
-  <dl class="glossary">
-    <div class="term"><dt>PSI</dt><dd>Population Stability Index — how much a segment's share of the population shifted between development and monitoring.</dd></div>
-    <div class="term"><dt>Bad Rate</dt><dd>Share of defaults/events in a segment; compared development vs. monitoring.</dd></div>
-    <div class="term"><dt>AUC / Gini / KS</dt><dd>Model discrimination metrics, each compared development vs. monitoring to measure performance decay.</dd></div>
-    <div class="term"><dt>Calibration Drift</dt><dd>Change in the Actual/Expected ratio — whether predicted risk still matches observed risk.</dd></div>
-    <div class="term"><dt>SIS</dt><dd>Segment Impact Score — weighted composite of drift and performance decay for one segment.</dd></div>
-    <div class="term"><dt>DIS</dt><dd>Drift Impact Score — additive composite of population and performance drift.</dd></div>
-    <div class="term"><dt>Root Cause Score</dt><dd>Feature-level PSI × Gini decay × population share — the metric used to compare segments across techniques.</dd></div>
-    <div class="term"><dt>Severity Score</dt><dd>Each technique's own internal ranking score — comparable within that technique only, not across techniques.</dd></div>
-    <div class="term"><dt>Frequency</dt><dd>Trend analysis: the share of monitoring months a segment ranked in its technique's worst-10 — how often it recurred.</dd></div>
-    <div class="term"><dt>Recency Factor</dt><dd>Trend analysis: how recently a segment last appeared, decaying by half every 2 months of absence — is it still an active problem?</dd></div>
-    <div class="term"><dt>Consistency Score</dt><dd>Trend analysis: the longest unbroken streak of months a segment appeared in, divided by total months — distinguishes "stayed bad continuously" from "keeps disappearing and reappearing" at the same overall frequency.</dd></div>
-    <div class="term"><dt>Trend Impact Score</dt><dd>A weighted blend of Frequency, Recency Factor and Consistency Score into one number, used to boost a recurring segment's SIS.</dd></div>
-    <div class="term"><dt>Early Warning Forecast</dt><dd>A simple straight-line projection of a segment's Root Cause Score across the months it appeared, flagging ones on track to cross an alert threshold soon — a projection, not a statistical model.</dd></div>
-    <div class="term"><dt>Q&amp;A Assistant</dt><dd>A chat interface (Tab 2) that answers free-form questions grounded in whichever results — classic and/or trend — are currently on screen.</dd></div>
-  </dl>
 </section>
 
 <footer>
-  autosegmentation/docs/architecture_high_level.svg · architecture_low_level.svg
+  autosegmentation/docs/architecture_high_level.svg
 </footer>

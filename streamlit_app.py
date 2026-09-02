@@ -90,15 +90,10 @@ PARAM_SPECS = {
         "rule_length_param": "max_depth",
         "rule_length_default": 3,
         "rule_length_range": (1, 6),
-        "percentile_param": "drift_quantiles",
-        "percentile_label": "Drift Scan Percentiles",
-        "percentile_kind": "multiselect",
-        "percentile_options": [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.99],
-        "percentile_default": [0.70, 0.85, 0.95],
+        "percentile_param": None,
         "auto_grid": {
             "max_depth": [2, 3, 4],
             "n_estimators": [50, 100, 150],
-            "drift_quantiles": [(0.70, 0.85, 0.95), (0.60, 0.80, 0.95), (0.75, 0.90, 0.99)],
         },
     },
     "Clustering": {
@@ -227,6 +222,54 @@ def render_technique_results(tech, result):
             st.warning(f"Could not generate LLM summary: {e}")
 
 
+def _auto_detect_schema(dev_df: pd.DataFrame) -> SchemaConfig:
+    """Fully automatic SchemaConfig for an arbitrary dev dataset -- numeric/
+    categorical/target/score/id/time all inferred from the data by
+    utils.schema_detection.detect_schema, so a completely different dataset
+    (new columns, different names) is picked up automatically with no code
+    change needed here. Used by both Tab 1 (user-uploaded datasets) and
+    Tab 2's trend-analysis path (user-selected monthly files).
+
+    Two manual overrides on top of the generic detection, both found by
+    testing against the real v2_1M data -- both are no-ops for datasets
+    without these exact columns:
+
+    - weight_col is pinned to "ead" when present. detect_schema's
+      weight/exposure pattern matches any column *containing* "amount" --
+      v2_1M's sanctioned_amount column matches it and, because it sits
+      earlier in the column order than ead, wins the auto-detection,
+      silently using the wrong exposure basis for every EAD-weighted
+      metric (Business_Impact_Score, Mon_Exposure_Pct, etc.).
+    - lgd_actual (loss given default) is excluded even though its name
+      matches no target/score pattern -- it's a model-output field in the
+      same leakage category as target/score, just not named obviously
+      enough for the generic detector to catch on its own.
+    """
+    from utils.schema_detection import detect_schema
+
+    cols = set(dev_df.columns)
+    seed_cfg = SchemaConfig(weight_col="ead") if "ead" in cols else SchemaConfig()
+    detected = detect_schema(dev_df, seed_cfg)
+
+    exclude_cols = list(detected["excluded_cols"])
+    numeric_cols = list(detected["numeric_cols"])
+    categorical_cols = list(detected["categorical_cols"])
+    if "lgd_actual" in cols and "lgd_actual" not in exclude_cols:
+        exclude_cols.append("lgd_actual")
+        numeric_cols = [c for c in numeric_cols if c != "lgd_actual"]
+        categorical_cols = [c for c in categorical_cols if c != "lgd_actual"]
+
+    return SchemaConfig(
+        target_col=detected["target_col"],
+        score_col=detected["score_col"],
+        weight_col=detected["weight_col"],
+        id_cols=detected["id_cols"],
+        exclude_cols=exclude_cols,
+        numeric_cols=numeric_cols,
+        categorical_cols=categorical_cols,
+    )
+
+
 # ============================================================
 # Page Config
 # ============================================================
@@ -259,18 +302,57 @@ with tab1:
 
     st.header("Segmentation Analysis")
 
-    dev_df = pd.read_csv(DEV_FILE)
-    mon_df = pd.read_csv(MON_FILE)
-    schema_cfg = build_feature_schema(dev_df)
-
-    st.caption(
-        f"Development: `{Path(DEV_FILE).name}` ({len(dev_df):,} rows) · "
-        f"Monitoring: `{Path(MON_FILE).name}` ({len(mon_df):,} rows). "
-        f"Segmentation features: **{', '.join(REQUESTED_FEATURES)}**. "
-        "`target`, `score`, `ead`, `shap_*` and `customer_id` are excluded from "
-        "segment rule discovery for every technique below — they are only used "
-        "to compute performance, drift and exposure metrics."
+    uploaded_dev = st.file_uploader(
+        "Development Dataset (CSV) — optional, uses the built-in demo dataset if empty",
+        type=["csv"],
+        key="tab1_dev_upload",
     )
+    uploaded_mon = st.file_uploader(
+        "Monitoring Dataset (CSV) — optional, uses the built-in demo dataset if empty",
+        type=["csv"],
+        key="tab1_mon_upload",
+    )
+
+    using_custom_dataset = uploaded_dev is not None and uploaded_mon is not None
+
+    if uploaded_dev is not None and uploaded_mon is None:
+        st.info("Upload a monitoring dataset too to use a custom dataset — falling back to the demo dataset.")
+    elif uploaded_mon is not None and uploaded_dev is None:
+        st.info("Upload a development dataset too to use a custom dataset — falling back to the demo dataset.")
+
+    if using_custom_dataset:
+        dev_df = pd.read_csv(uploaded_dev)
+        mon_df = pd.read_csv(uploaded_mon)
+        try:
+            schema_cfg = _auto_detect_schema(dev_df)
+        except ValueError as e:
+            st.error(f"Could not auto-detect a schema for the uploaded dataset: {e}")
+            st.stop()
+
+        feature_cols = sorted((schema_cfg.numeric_cols or []) + (schema_cfg.categorical_cols or []))
+        st.caption(
+            f"Development: `{uploaded_dev.name}` ({len(dev_df):,} rows) · "
+            f"Monitoring: `{uploaded_mon.name}` ({len(mon_df):,} rows). "
+            f"Auto-detected target: **{schema_cfg.target_col}**, score: **{schema_cfg.score_col}**, "
+            f"weight/exposure: **{schema_cfg.weight_col or 'none'}**. "
+            f"Segmentation features: **{', '.join(feature_cols) if feature_cols else 'none detected'}**. "
+            f"Target, score, weight, ID, time and SHAP columns are excluded from segment rule "
+            "discovery for every technique below — they are only used to compute performance, "
+            "drift and exposure metrics."
+        )
+    else:
+        dev_df = pd.read_csv(DEV_FILE)
+        mon_df = pd.read_csv(MON_FILE)
+        schema_cfg = build_feature_schema(dev_df)
+
+        st.caption(
+            f"Development: `{Path(DEV_FILE).name}` ({len(dev_df):,} rows) · "
+            f"Monitoring: `{Path(MON_FILE).name}` ({len(mon_df):,} rows). "
+            f"Segmentation features: **{', '.join(REQUESTED_FEATURES)}**. "
+            "`target`, `score`, `ead`, `shap_*` and `customer_id` are excluded from "
+            "segment rule discovery for every technique below — they are only used "
+            "to compute performance, drift and exposure metrics."
+        )
 
     selected_techniques = st.multiselect(
         "1. Segmentation Technique(s)",
@@ -282,7 +364,7 @@ with tab1:
         "2. Minimum Segment Size (rows)",
         min_value=10,
         max_value=int(len(dev_df)),
-        value=150,
+        value=min(150, int(len(dev_df))),
         step=10,
         help="Candidate segments with fewer development-period rows than this "
              "are discarded, regardless of technique.",
@@ -303,6 +385,14 @@ with tab1:
         spec = PARAM_SPECS[technique]
         with st.expander(f"{technique} Parameters", expanded=True):
             values = {}
+
+            if technique == "Drift Localization Tree":
+                st.caption(
+                    "Uses the same underlying idea as Decision Tree — trains a model to tell "
+                    "development rows apart from monitoring rows, then reads off where it "
+                    "succeeds — but as a single tree instead of an ensemble, so it's faster "
+                    "and coarser (fewer, larger candidate segments), not a different method."
+                )
 
             if auto_optimize:
                 st.info("Max Rule Length / Percentiles will be auto-selected via grid search.")
@@ -371,53 +461,6 @@ with tab1:
 # ============================================================
 # TAB 2
 # ============================================================
-
-def _build_schema_for_dev_file(dev_df: pd.DataFrame) -> SchemaConfig:
-    """Fully automatic SchemaConfig for whatever dev file the user picked in
-    trend mode -- numeric/categorical/target/score/id/time all inferred
-    from the data by utils.schema_detection.detect_schema, so a dataset
-    that later gets new columns (e.g. v2_1M added marital_status/channel/
-    product_type/sanctioned_amount on top of the original v2 schema) is
-    picked up automatically, with no code change needed here.
-
-    Two manual overrides on top of the generic detection, both found by
-    testing against the real v2_1M data:
-
-    - weight_col is pinned to "ead" when present. detect_schema's
-      weight/exposure pattern matches any column *containing* "amount" --
-      v2_1M's new sanctioned_amount column matches it and, because it sits
-      earlier in the column order than ead, wins the auto-detection,
-      silently using the wrong exposure basis for every EAD-weighted
-      metric (Business_Impact_Score, Mon_Exposure_Pct, etc.).
-    - lgd_actual (loss given default) is excluded even though its name
-      matches no target/score pattern -- it's a model-output field in the
-      same leakage category as target/score, just not named obviously
-      enough for the generic detector to catch on its own.
-    """
-    from utils.schema_detection import detect_schema
-
-    cols = set(dev_df.columns)
-    seed_cfg = SchemaConfig(weight_col="ead") if "ead" in cols else SchemaConfig()
-    detected = detect_schema(dev_df, seed_cfg)
-
-    exclude_cols = list(detected["excluded_cols"])
-    numeric_cols = list(detected["numeric_cols"])
-    categorical_cols = list(detected["categorical_cols"])
-    if "lgd_actual" in cols and "lgd_actual" not in exclude_cols:
-        exclude_cols.append("lgd_actual")
-        numeric_cols = [c for c in numeric_cols if c != "lgd_actual"]
-        categorical_cols = [c for c in categorical_cols if c != "lgd_actual"]
-
-    return SchemaConfig(
-        target_col=detected["target_col"],
-        score_col=detected["score_col"],
-        weight_col=detected["weight_col"],
-        id_cols=detected["id_cols"],
-        exclude_cols=exclude_cols,
-        numeric_cols=numeric_cols,
-        categorical_cols=categorical_cols,
-    )
-
 
 def _build_qa_context() -> str:
     """Compact text summary of whatever run results are currently in
@@ -501,7 +544,7 @@ with tab2:
 
         if run_trend_clicked:
             dev_df = pd.read_csv(DATA_DIR / trend_dev_file)
-            trend_schema = _build_schema_for_dev_file(dev_df)
+            trend_schema = _auto_detect_schema(dev_df)
 
             period_results = {}
             progress = st.progress(0.0, text="Starting trend analysis...")
@@ -533,6 +576,15 @@ with tab2:
             st.session_state["trend_months_count"] = len(trend_mon_files)
             st.session_state["trend_periods"] = list(period_results.keys())
 
+            # Symmetric to the classic path: a fresh trend run makes any
+            # earlier classic-benchmark results stale -- clear them so
+            # Tab 3 doesn't keep showing a leftover classic section (with
+            # its own duplicate heatmap/bubble/waterfall) alongside this
+            # trend run.
+            st.session_state["cross_top10_df"] = pd.DataFrame()
+            st.session_state["cross_exec_summary_df"] = pd.DataFrame()
+            st.session_state["summary_df"] = pd.DataFrame()
+
             if trend_df.empty:
                 st.session_state["trend_cross_top10_df"] = pd.DataFrame()
                 st.session_state["trend_time_series_df"] = pd.DataFrame()
@@ -563,6 +615,8 @@ with tab2:
         # ====================================================
 
         trend_df = st.session_state.get("trend_df", pd.DataFrame())
+        time_series_df = st.session_state.get("trend_time_series_df", pd.DataFrame())
+        forecast_df = forecast_segment_scores(time_series_df, TrendAnalysisConfig()) if not time_series_df.empty else pd.DataFrame()
 
         if trend_df.empty:
             if run_trend_clicked:
@@ -600,6 +654,89 @@ with tab2:
                 key="download_trend_analysis",
             )
 
+            # ====================================================
+            # Segment-level Analysis (renamed from "Metric Time Series") --
+            # placed directly below the Trend Analysis Summary CSV per
+            # manager feedback, ahead of the charts below.
+            # ====================================================
+
+            if not time_series_df.empty:
+                st.subheader("📉 Segment-level Analysis")
+                st.caption(
+                    "Add-on to the summary table above (unchanged) -- pick one segment to see its "
+                    "actual month-by-month numbers (population %, exposure, AUC, KS, bad rate, SIS, "
+                    "DIS, SHAP shift, Root_Cause_Score) across *every* month analyzed, not just the "
+                    "single trend-boosted score. Months where the segment didn't rank in that "
+                    "technique's worst-10 show as a blank row / a gap in the line -- not skipped or "
+                    "interpolated -- so the recurrence pattern (continuous vs. on-and-off) is visible "
+                    "at a glance. The downloadable CSV includes every column shown here."
+                )
+
+                segment_options = (
+                    time_series_df[["Technique", "Segment_Definition"]]
+                    .drop_duplicates()
+                    .apply(lambda r: f"{r['Technique']} — {r['Segment_Definition']}", axis=1)
+                    .tolist()
+                )
+                selected = st.selectbox(
+                    "Select a segment to view its time series",
+                    options=["-- Select a segment --"] + sorted(segment_options),
+                    index=0,
+                    key="time_series_segment_picker",
+                )
+
+                if selected != "-- Select a segment --":
+                    sel_tech, sel_seg = selected.split(" — ", 1)
+                    seg_ts = time_series_df[
+                        (time_series_df["Technique"] == sel_tech)
+                        & (time_series_df["Segment_Definition"] == sel_seg)
+                    ].sort_values("Period_Index")
+
+                    all_periods = st.session_state.get("trend_periods", [])
+                    seg_ts_full = reindex_segment_time_series(seg_ts, all_periods) if all_periods else seg_ts
+
+                    display_ts = seg_ts_full.drop(columns=["Period_Index"], errors="ignore").copy()
+                    if "Root_Cause_Score" in display_ts.columns:
+                        display_ts.insert(
+                            1, "Appeared_This_Month",
+                            display_ts["Root_Cause_Score"].notna().map({True: "✓", False: "—"}),
+                        )
+                    st.dataframe(display_ts, use_container_width=True)
+
+                    forecast_point = None
+                    if not forecast_df.empty:
+                        match = forecast_df[
+                            (forecast_df["Technique"] == sel_tech)
+                            & (forecast_df["Segment_Definition"] == sel_seg)
+                        ]
+                        if not match.empty:
+                            forecast_point = float(match.iloc[0]["Predicted_Next_Root_Cause_Score"])
+
+                    st.markdown("**All key metrics together, full month range:**")
+                    fig = segment_all_metrics_chart(seg_ts_full, sel_seg)
+                    if fig is not None:
+                        st.pyplot(fig)
+                    else:
+                        st.info("Not enough numeric data across the selected months to plot this segment.")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        fig = segment_metric_time_series_chart(seg_ts_full, "Root_Cause_Score", sel_seg, forecast_point=forecast_point)
+                        if fig is not None:
+                            st.pyplot(fig)
+                    with col2:
+                        fig = segment_metric_time_series_chart(seg_ts_full, "Mon_AUC", sel_seg)
+                        if fig is not None:
+                            st.pyplot(fig)
+
+                st.download_button(
+                    label="📥 Download Full Time-Series CSV (all segments)",
+                    data=time_series_df.to_csv(index=False),
+                    file_name="trend_metric_time_series.csv",
+                    mime="text/csv",
+                    key="download_trend_time_series",
+                )
+
             trend_top10 = trend_df.nlargest(10, "Severity_Score_Trend")
 
             st.subheader("🌡️ Segment x Metric Heatmap (Top 10 by Severity_Score_Trend)")
@@ -628,90 +765,6 @@ with tab2:
                 )
 
         # ====================================================
-        # Metric Time Series (add-on, requested by manager) -- also reads
-        # from session_state for the same reason as above.
-        # ====================================================
-
-        time_series_df = st.session_state.get("trend_time_series_df", pd.DataFrame())
-        forecast_df = forecast_segment_scores(time_series_df, TrendAnalysisConfig()) if not time_series_df.empty else pd.DataFrame()
-
-        if not time_series_df.empty:
-            st.subheader("📉 Metric Time Series (per segment)")
-            st.caption(
-                "Add-on to the summary table above (unchanged) -- pick one segment to see its "
-                "actual month-by-month numbers (population %, AUC, KS, bad rate, SIS, DIS, "
-                "Root_Cause_Score) across *every* month analyzed, not just the single "
-                "trend-boosted score. Months where the segment didn't rank in that technique's "
-                "worst-10 show as a blank row / a gap in the line -- not skipped or interpolated -- "
-                "so the recurrence pattern (continuous vs. on-and-off) is visible at a glance."
-            )
-
-            segment_options = (
-                time_series_df[["Technique", "Segment_Definition"]]
-                .drop_duplicates()
-                .apply(lambda r: f"{r['Technique']} — {r['Segment_Definition']}", axis=1)
-                .tolist()
-            )
-            selected = st.selectbox(
-                "Select a segment to view its time series",
-                options=["-- Select a segment --"] + sorted(segment_options),
-                index=0,
-                key="time_series_segment_picker",
-            )
-
-            if selected != "-- Select a segment --":
-                sel_tech, sel_seg = selected.split(" — ", 1)
-                seg_ts = time_series_df[
-                    (time_series_df["Technique"] == sel_tech)
-                    & (time_series_df["Segment_Definition"] == sel_seg)
-                ].sort_values("Period_Index")
-
-                all_periods = st.session_state.get("trend_periods", [])
-                seg_ts_full = reindex_segment_time_series(seg_ts, all_periods) if all_periods else seg_ts
-
-                display_ts = seg_ts_full.drop(columns=["Period_Index"], errors="ignore").copy()
-                if "Root_Cause_Score" in display_ts.columns:
-                    display_ts.insert(
-                        1, "Appeared_This_Month",
-                        display_ts["Root_Cause_Score"].notna().map({True: "✓", False: "—"}),
-                    )
-                st.dataframe(display_ts, use_container_width=True)
-
-                forecast_point = None
-                if not forecast_df.empty:
-                    match = forecast_df[
-                        (forecast_df["Technique"] == sel_tech)
-                        & (forecast_df["Segment_Definition"] == sel_seg)
-                    ]
-                    if not match.empty:
-                        forecast_point = float(match.iloc[0]["Predicted_Next_Root_Cause_Score"])
-
-                st.markdown("**All key metrics together, full month range:**")
-                fig = segment_all_metrics_chart(seg_ts_full, sel_seg)
-                if fig is not None:
-                    st.pyplot(fig)
-                else:
-                    st.info("Not enough numeric data across the selected months to plot this segment.")
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    fig = segment_metric_time_series_chart(seg_ts_full, "Root_Cause_Score", sel_seg, forecast_point=forecast_point)
-                    if fig is not None:
-                        st.pyplot(fig)
-                with col2:
-                    fig = segment_metric_time_series_chart(seg_ts_full, "Mon_AUC", sel_seg)
-                    if fig is not None:
-                        st.pyplot(fig)
-
-            st.download_button(
-                label="📥 Download Full Time-Series CSV (all segments)",
-                data=time_series_df.to_csv(index=False),
-                file_name="trend_metric_time_series.csv",
-                mime="text/csv",
-                key="download_trend_time_series",
-            )
-
-        # ====================================================
         # Early Warning (new feature): plain linear extrapolation of each
         # segment's Root_Cause_Score, flagging ones on track to cross the
         # alert threshold soon. Pure math on already-computed
@@ -722,12 +775,17 @@ with tab2:
             st.subheader("🔮 Early Warning: Segments Projected to Worsen")
             _cfg = TrendAnalysisConfig()
             st.caption(
-                f"Simple straight-line projection of each segment's Root_Cause_Score across the "
-                f"months it appeared -- not a statistical model, just \"is this getting worse, and "
-                f"how fast.\" Flagged when the trend is worsening and projected to cross "
-                f"{_cfg.forecast_alert_threshold} within {_cfg.forecast_horizon_months} months. "
-                f"2-point forecasts are lower confidence than 3+ points -- treat as \"worth watching,\" "
-                f"not a precise prediction. Threshold/horizon are tunable defaults, not a validated cutoff."
+                f"Ordinary least-squares linear regression (scipy.stats.linregress) of each "
+                f"segment's Root_Cause_Score against the months it appeared, projected one period "
+                f"forward. Wherever there's enough history (3+ months), the R² (goodness of fit), "
+                f"the trend's p-value (is the slope statistically distinguishable from zero), and a "
+                f"95% prediction interval on the forecast are reported alongside the point estimate. "
+                f"With exactly 2 months, the line is still fitted, but there's no residual data left "
+                f"to test significance or bound the forecast, so those fields are left blank rather "
+                f"than implied -- shown as \"Low (2 points)\" confidence. Flagged when the trend is "
+                f"worsening (positive slope) and projected to cross {_cfg.forecast_alert_threshold} "
+                f"within {_cfg.forecast_horizon_months} months. Threshold/horizon are tunable "
+                f"defaults, not a validated cutoff."
             )
             n_flagged = int(forecast_df["Early_Warning"].sum())
             if n_flagged:
@@ -736,12 +794,20 @@ with tab2:
                 st.markdown("**Segments to Watch (most urgent first):**")
                 watch_list = forecast_df[forecast_df["Early_Warning"]].sort_values("Months_To_Breach").head(5)
                 for r in watch_list.itertuples():
+                    ci_part = (
+                        f" (95% CI: {r.Predicted_Next_Lower95:.2f}–{r.Predicted_Next_Upper95:.2f})"
+                        if r.Predicted_Next_Lower95 is not None else ""
+                    )
+                    stats_part = (
+                        f" · R²={r.R_Squared:.2f}, p={r.Trend_P_Value:.3f}"
+                        if r.R_Squared is not None else ""
+                    )
                     st.write(
                         f"**{r.Technique}** — {r.Segment_Definition}  \n"
                         f"Currently at {r.Current_Root_Cause_Score:.2f}, projected to reach "
-                        f"{r.Predicted_Next_Root_Cause_Score:.2f} next month · last seen in "
+                        f"{r.Predicted_Next_Root_Cause_Score:.2f}{ci_part} next month · last seen in "
                         f"*{r.Last_Appeared_Period}* · expected to cross the alert threshold in "
-                        f"~{r.Months_To_Breach} month(s) · {r.Confidence.lower()}"
+                        f"~{r.Months_To_Breach} month(s){stats_part} · {r.Confidence.lower()}"
                     )
 
                 fig = early_warning_urgency_chart(forecast_df)
@@ -771,6 +837,16 @@ with tab2:
         st.session_state["cross_top10_df"] = cross_top10_df
         st.session_state["cross_exec_summary_df"] = cross_exec_summary_df
         st.session_state["summary_df"] = summary_df
+
+        # A classic run makes any earlier trend-analysis results stale --
+        # clear them so Tab 3 doesn't keep showing a leftover trend section
+        # (with its own duplicate heatmap/bubble/waterfall) from a run that
+        # may be from a totally different dataset or parameters.
+        st.session_state["trend_df"] = pd.DataFrame()
+        st.session_state["trend_cross_top10_df"] = pd.DataFrame()
+        st.session_state["trend_time_series_df"] = pd.DataFrame()
+        st.session_state["trend_months_count"] = None
+        st.session_state["trend_periods"] = []
 
         st.success(
             "Benchmark Completed Successfully"
@@ -1011,14 +1087,6 @@ with tab2:
 
 with tab3:
 
-    st.header("🔎 Cross-Technique Insights")
-    st.caption(
-        "Top-10 root-cause segments across all techniques, ranked by "
-        "normalized Root_Cause_Score — a blend of drift, performance "
-        "decay and population impact, not performance decay alone "
-        "(task-flow step 4). Run the benchmark in 'Technique Comparison' first."
-    )
-
     cross_top10_df = st.session_state.get("cross_top10_df", pd.DataFrame())
     cross_exec_summary_df = st.session_state.get("cross_exec_summary_df", pd.DataFrame())
     trend_cross_top10_df = st.session_state.get("trend_cross_top10_df", pd.DataFrame())
@@ -1028,8 +1096,21 @@ with tab3:
     elif cross_top10_df.empty:
         pass  # only a trend run has been done -- the trend section below covers it
     else:
+        st.caption(
+            "Top-10 root-cause segments across all techniques, ranked by "
+            "normalized Root_Cause_Score — a blend of drift, performance "
+            "decay and population impact, not performance decay alone "
+            "(task-flow step 4)."
+        )
         st.subheader("📋 Top 10 Root-Cause Segments (All Techniques)")
         st.dataframe(cross_top10_df, use_container_width=True)
+        st.download_button(
+            label="📥 Download Cross-Technique CSV (all columns)",
+            data=cross_top10_df.to_csv(index=False),
+            file_name="cross_technique_top10.csv",
+            mime="text/csv",
+            key="download_cross_top10",
+        )
 
         if not cross_exec_summary_df.empty:
             st.subheader("📝 Cross-Technique Executive Summary")
@@ -1066,8 +1147,9 @@ with tab3:
         st.caption(
             "Top-10 root-cause segments across all techniques and all selected months, "
             "ranked by normalized Root_Cause_Score_Trend (Root_Cause_Score with SIS "
-            "boosted by each segment's Trend_Impact_Score). Run trend analysis in "
-            "'Technique Comparison' first."
+            "boosted by each segment's Trend_Impact_Score). The table below shows the "
+            "core columns for readability; the downloadable CSV includes every metric "
+            "(PSI, AUC/Gini/KS, bad rate, exposure, SHAP, calibration, and more)."
         )
 
         trend_display_cols = [
@@ -1080,6 +1162,13 @@ with tab3:
         ]
         st.subheader("📋 Top 10 Root-Cause Segments (All Techniques, Trend-Adjusted)")
         st.dataframe(trend_cross_top10_df[trend_display_cols], use_container_width=True)
+        st.download_button(
+            label="📥 Download Cross-Technique Trend CSV (all columns)",
+            data=trend_cross_top10_df.to_csv(index=False),
+            file_name="cross_technique_trend_top10.csv",
+            mime="text/csv",
+            key="download_cross_trend_top10",
+        )
 
         st.subheader("🌡️ Segment x Metric Heatmap (Trend)")
         fig = segment_metric_heatmap(trend_cross_top10_df)

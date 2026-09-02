@@ -582,19 +582,6 @@ class DriftLocalizationTreeTechnique(
         scored_records = (
             compute_severity_scores(
                 candidates_evaluated,
-                w_psi=cfg.w_psi,
-                w_business_impact=(
-                    cfg.w_business_impact
-                ),
-                w_gini_drop=(
-                    cfg.w_gini_drop
-                ),
-                w_ks_drop=(
-                    cfg.w_ks_drop
-                ),
-                w_br_shift=(
-                    cfg.w_br_shift
-                ),
                 significance_alpha=(
                     cfg.significance_alpha
                 ),

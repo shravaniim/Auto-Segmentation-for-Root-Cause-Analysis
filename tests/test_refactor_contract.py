@@ -8,22 +8,18 @@ from techniques.base import BaseSegmentationTechnique
 
 
 class DummyTechnique(BaseSegmentationTechnique):
-    def generate_candidates(self):
-        return []
+    @property
+    def name(self):
+        return "Dummy"
 
-    def evaluate_candidates(self, candidates):
-        return []
-
-    def rank_candidates(self, candidates):
-        return []
-
-    def run(self):
+    def run(self, dev_data, mon_data, config=None):
         return {"status": "ok"}
 
 
 def test_base_interface_can_be_subclassed():
     technique = DummyTechnique()
-    assert technique.run() == {"status": "ok"}
+    assert technique.name == "Dummy"
+    assert technique.run(None, None) == {"status": "ok"}
 
 
 def test_filtering_helpers_match_expected_thresholds():
@@ -41,7 +37,7 @@ def test_metrics_are_calculated_consistently():
     assert np.isclose(auc, 1.0)
     assert np.isclose(gini, 1.0)
     assert np.isclose(calculate_ks(y_true, y_score), 1.0)
-    assert np.isclose(calculate_psi(0.2, 0.4), 0.4 * np.log(2.0))
+    assert np.isclose(calculate_psi(0.2, 0.4), (0.4 - 0.2) * np.log(0.4 / 0.2))
 
     p_value = two_proportion_ztest_pvalue(10, 100, 20, 100)
     assert np.isfinite(p_value)

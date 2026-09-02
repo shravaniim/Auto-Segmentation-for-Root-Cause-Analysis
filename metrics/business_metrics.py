@@ -64,6 +64,26 @@ def calculate_dis(
     return float(max(0.0, dis))
 
 
+def calculate_dis_symmetric(
+    population_drift: float,
+    auc_drop: float,
+    exposure_factor: float,
+    total_psi: float,
+) -> float:
+    """Symmetric variant of calculate_dis(): uses abs(population_drift)
+    instead of the raw signed value, so a segment that is *shrinking* while
+    its performance degrades still registers impact here, rather than
+    flooring to 0. calculate_dis() only registers impact for segments that
+    are simultaneously growing and degrading -- a real methodological blind
+    spot for the (common) case of a shrinking-but-badly-degraded segment.
+    This is a diagnostic addition, not a replacement: DIS_Raw (and
+    Root_Cause_Score/Severity_Score, which depend on it) are unchanged.
+    """
+    auc_drop_val = max(0.0, auc_drop) if not np.isnan(auc_drop) else 0.0
+    psi_val = max(0.0, total_psi) if not np.isnan(total_psi) else 0.0
+    return float(abs(population_drift) * auc_drop_val * exposure_factor * (1.0 + psi_val))
+
+
 def calculate_root_cause_score(
     norm_sis: float,
     norm_dis: float,
